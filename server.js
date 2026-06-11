@@ -154,9 +154,30 @@ app.post("/scrape-event", async (req, res) => {
       ? apifyData
       : [];
 
-    const normalized = exhibitors
-      .map(item => normalizeExhibitor(item, eventId, eventURL))
-      .filter(item => item.companyName);
+const normalized = exhibitors
+  .filter(item =>
+    item.__company_name ||
+    item.companyName ||
+    item.name ||
+    item.title ||
+    item.exhibitorName
+  )
+  .map(item => normalizeExhibitor(item, eventId, eventURL))
+  .filter(item =>
+    item.companyName &&
+    !item.companyName.toLowerCase().includes("given url is not supported") &&
+    !item.companyName.toLowerCase().includes("please note")
+  );
+
+  if (normalized.length === 0) {
+  return res.status(200).json({
+    success: false,
+    eventId,
+    exhibitorsFound: 0,
+    leadsCreated: 0,
+    message: "No valid exhibitors found. The event URL may not be supported by this Apify actor."
+  });
+}
 
     console.log("EXHIBITORS FOUND:", normalized.length);
 
