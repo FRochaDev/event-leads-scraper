@@ -32,6 +32,23 @@ const leadsTable = glide.table({
   }
 });
 
+const eventsTable = glide.table({
+  token: process.env.GLIDE_TOKEN,
+  app: "4emgJAe0tdBbNwo2rEeq",
+  table: "native-table-kaGkp45eRnfVonDI7LYM",
+  columns: {
+    eventName: { type: "string", name: "6yjzn" },
+    eventUrl: { type: "uri", name: "fMJYV" },
+    country: { type: "string", name: "5MqfO" },
+    eventDate: { type: "date-time", name: "Xfwqb" },
+    scrappingStatus: { type: "string", name: "6G5uy" },
+    leadsFound: { type: "number", name: "4PJY9" },
+    lastScrapped: { type: "date-time", name: "oO6V2" },
+    responseBody: { type: "string", name: "I5pYh" },
+    responseStatus: { type: "string", name: "F1gfv" }
+  }
+});
+
 app.get("/", (req, res) => {
   res.json({ status: "online" });
 });
@@ -127,13 +144,20 @@ app.post("/scrape-event", async (req, res) => {
     console.log(JSON.stringify(apifyData, null, 2));
 
     if (!actorResponse.ok || apifyData.error) {
-      return res.status(500).json({
-        error: true,
-        source: "apify",
-        status: actorResponse.status,
-        message: apifyData?.error?.message || "Apify request failed",
-        details: apifyData
-      });
+await eventsTable.update(eventId, {
+  scrappingStatus: "Failed",
+  lastScrapped: new Date(),
+  responseStatus: String(actorResponse.status),
+  responseBody: JSON.stringify(apifyData)
+});
+
+return res.status(500).json({
+  error: true,
+  source: "apify",
+  status: actorResponse.status,
+  message: apifyData?.error?.message || "Apify request failed",
+  details: apifyData
+});
     }
 
     const exhibitors = Array.isArray(apifyData) ? apifyData : [];
@@ -186,23 +210,44 @@ app.post("/scrape-event", async (req, res) => {
       createdRows.push(rowId);
     }
 
-    return res.status(200).json({
-      success: true,
-      eventId,
-      exhibitorsFound: normalized.length,
-      leadsCreated: createdRows.length,
-      preview: normalized.slice(0, 5)
-    });
+await eventsTable.update(eventId, {
+  scrappingStatus: "Completed",
+  leadsFound: createdRows.length,
+  lastScrapped: new Date(),
+  responseStatus: "200",
+  responseBody: JSON.stringify({
+    exhibitorsFound: normalized.length,
+    leadsCreated: createdRows.length
+  })
+});
+
+return res.status(200).json({
+  success: true,
+  eventId,
+  exhibitorsFound: normalized.length,
+  leadsCreated: createdRows.length,
+  preview: normalized.slice(0, 5)
+});
 
   } catch (error) {
     console.error("SCRAPE EVENT ERROR:", error);
 
-    return res.status(500).json({
-      error: true,
-      message: error.message
-    });
+    try {
+  await eventsTable.update(eventId, {
+    scrappingStatus: "Failed",
+    lastScrapped: new Date(),
+    responseStatus: "500",
+    responseBody: error.message
+  });
+} catch {}
+
+return res.status(500).json({
+  error: true,
+  message: error.message
+});
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
