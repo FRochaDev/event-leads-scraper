@@ -38,8 +38,7 @@ app.get("/", (req, res) => {
 app.post("/scrape-event", async (req, res) => {
 
   console.log("HIT /scrape-event");
-  console.log("BODY:", req.body);
-
+console.log("BODY:", req.body);
   try {
     const { eventId, eventURL } = req.body || {};
 
@@ -136,11 +135,12 @@ app.post("/scrape-event", async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("SCRAPE EVENT ERROR:", error);
 
     return res.status(500).json({
       error: true,
-      message: error.message
+      message: error.message,
+      stack: error.stack
     });
   }
 });
