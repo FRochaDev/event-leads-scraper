@@ -140,8 +140,6 @@ app.post("/scrape-event", async (req, res) => {
 
     const apifyData = await actorResponse.json();
 
-    console.log("APIFY DATA:");
-    console.log(JSON.stringify(apifyData, null, 2));
 
     if (!actorResponse.ok || apifyData.error) {
 await eventsTable.update(eventId, {
