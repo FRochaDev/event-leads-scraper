@@ -4,13 +4,14 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-     "start": "node server.js"
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@glideapps/tables": "^1.0.21",
     "cors": "^2.8.6",
     "express": "^5.2.1"
   }
