@@ -36,6 +36,10 @@ app.get("/", (req, res) => {
 });
 
 app.post("/scrape-event", async (req, res) => {
+
+  console.log("HIT /scrape-event");
+  console.log("BODY:", req.body);
+
   try {
     const { eventID, eventURL } = req.body || {};
 
