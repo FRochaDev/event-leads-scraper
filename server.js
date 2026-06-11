@@ -72,7 +72,7 @@ console.log("BODY:", req.body);
 
 console.log("APIFY STATUS:", actorResponse.status);
 
-const apifyData = await actorResponse.json();
+
 
 console.log("APIFY DATA:");
 console.log(JSON.stringify(apifyData, null, 2));
