@@ -7,6 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+const APIFY_TOKEN = process.env.APIFY_TOKEN;
 
 app.get("/", (req, res) => {
   res.json({
@@ -44,6 +45,11 @@ app.post("/scrape-event", async (req, res) => {
   }
 
 });
+
+console.log(
+  "APIFY TOKEN EXISTS:",
+  !!APIFY_TOKEN
+);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
