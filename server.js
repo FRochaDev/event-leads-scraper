@@ -75,16 +75,21 @@ app.post("/scrape-event", async (req, res) => {
 
     const exhibitors = await actorResponse.json();
 
-    console.log(
-      "EXHIBITORS FOUND:",
-      exhibitors.length
-    );
 
-    return res.status(200).json({
-      success: true,
-      exhibitorsFound: exhibitors.length,
-      exhibitors: exhibitors.slice(0, 5)
-    });
+
+console.log(
+  "APIFY RESPONSE:"
+);
+
+console.log(
+  JSON.stringify(exhibitors, null, 2)
+);
+
+return res.status(200).json({
+  success: true
+});
+
+
 
   } catch (error) {
 
