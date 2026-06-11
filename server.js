@@ -90,6 +90,11 @@ app.post("/scrape-event", async (req, res) => {
       body.site ||
       body.url;
 
+      const resultLimit = Math.min(
+  Number(body.result_limit) || 50,
+  100
+);
+
     if (!eventId || !startUrl) {
       return res.status(400).json({
         error: true,
@@ -108,7 +113,7 @@ app.post("/scrape-event", async (req, res) => {
         body: JSON.stringify({
           get_booth_sizes: false,
           output_type: "single_row",
-          result_limit: 50,
+          result_limit: resultLimit,
           start_url: startUrl
         })
       }
