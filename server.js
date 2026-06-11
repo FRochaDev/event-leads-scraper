@@ -15,7 +15,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.post("/scrape-event", async (req, res) => {
+/*app.post("/scrape-event", async (req, res) => {
 
   try {
 
@@ -44,12 +44,60 @@ app.post("/scrape-event", async (req, res) => {
 
   }
 
-});
+});*/
 
-console.log(
-  "APIFY TOKEN EXISTS:",
-  !!APIFY_TOKEN
-);
+app.post("/scrape-event", async (req, res) => {
+
+  try {
+
+    const { eventId, eventURL } = req.body;
+
+    console.log("NEW SCRAPE REQUEST");
+    console.log("Event:", eventId);
+    console.log("URL:", eventURL);
+
+    const actorResponse = await fetch(
+      `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          startUrls: [
+            {
+              url: eventURL
+            }
+          ]
+        })
+      }
+    );
+
+    const exhibitors = await actorResponse.json();
+
+    console.log(
+      "EXHIBITORS FOUND:",
+      exhibitors.length
+    );
+
+    return res.status(200).json({
+      success: true,
+      exhibitorsFound: exhibitors.length,
+      exhibitors: exhibitors.slice(0, 5)
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: true,
+      message: error.message
+    });
+
+  }
+
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
