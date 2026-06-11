@@ -54,21 +54,40 @@ console.log("BODY:", req.body);
     console.log("URL:", eventURL);
 
     const actorResponse = await fetch(
-      `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          startUrls: [
-            {
-              url: eventURL
-            }
-          ]
-        })
-      }
-    );
+  `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      startUrls: [
+        {
+          url: eventURL
+        }
+      ]
+    })
+  }
+);
+
+console.log("APIFY STATUS:", actorResponse.status);
+
+const apifyData = await actorResponse.json();
+
+console.log("APIFY DATA:");
+console.log(JSON.stringify(apifyData, null, 2));
+
+if (!actorResponse.ok || apifyData.error) {
+  console.log("APIFY FAILED");
+
+  return res.status(500).json({
+    error: true,
+    source: "apify",
+    status: actorResponse.status,
+    message: apifyData?.error?.message || "Apify request failed",
+    details: apifyData
+  });
+}
 
     const apifyData = await actorResponse.json();
 
