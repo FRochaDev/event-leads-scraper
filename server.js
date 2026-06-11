@@ -33,53 +33,41 @@ const leadsTable = glide.table({
 });
 
 app.get("/", (req, res) => {
-  res.json({
-    status: "online"
-  });
+  res.json({ status: "online" });
 });
 
-function normalizeExhibitor(item, eventId, eventURL) {
-  const companyName =
-    item.__company_name ||
-    item.companyName ||
-    item.name ||
-    item.title ||
-    item.exhibitorName ||
-    "";
-
-  const website =
-    item._company_website ||
-    item.website ||
-    item.url ||
-    item.companyWebsite ||
-    "";
-
-  const email =
-    item._company_email ||
-    item.email ||
-    item.contactEmail ||
-    item.companyEmail ||
-    "";
-
-  const sourceUrl =
-    item.___exhibitor_profile_url ||
-    item.sourceURL ||
-    item.sourceUrl ||
-    item.detailUrl ||
-    eventURL;
-
-  const country =
-    item._company_country ||
-    item.country ||
-    "";
-
+function normalizeExhibitor(item, eventId, startUrl) {
   return {
     eventId,
-    companyName,
-    website,
-    email,
-    sourceUrl,
-    country
+    companyName:
+      item.__company_name ||
+      item.companyName ||
+      item.name ||
+      item.title ||
+      item.exhibitorName ||
+      "",
+    website:
+      item._company_website ||
+      item.website ||
+      item.url ||
+      item.companyWebsite ||
+      "",
+    email:
+      item._company_email ||
+      item.email ||
+      item.contactEmail ||
+      item.companyEmail ||
+      "",
+    sourceUrl:
+      item.___exhibitor_profile_url ||
+      item.sourceURL ||
+      item.sourceUrl ||
+      item.detailUrl ||
+      startUrl,
+    country:
+      item._company_country ||
+      item.country ||
+      ""
   };
 }
 
@@ -95,23 +83,20 @@ app.post("/scrape-event", async (req, res) => {
       body.eventID ||
       body.id;
 
-    const eventURL =
+    const startUrl =
+      body.start_url ||
       body.eventURL ||
       body.eventUrl ||
       body.site ||
       body.url;
 
-    if (!eventId || !eventURL) {
+    if (!eventId || !startUrl) {
       return res.status(400).json({
         error: true,
-        message: "eventId and eventURL are required",
+        message: "eventId and start_url are required",
         received: body
       });
     }
-
-    console.log("NEW SCRAPE REQUEST");
-    console.log("Event:", eventId);
-    console.log("URL:", eventURL);
 
     const actorResponse = await fetch(
       `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
@@ -120,10 +105,12 @@ app.post("/scrape-event", async (req, res) => {
         headers: {
           "Content-Type": "application/json"
         },
-body: JSON.stringify({
-  evenId: eventId,
-  start_url: eventURL,
-})
+        body: JSON.stringify({
+          get_booth_sizes: false,
+          output_type: "single_row",
+          result_limit: 50,
+          start_url: startUrl
+        })
       }
     );
 
@@ -135,49 +122,41 @@ body: JSON.stringify({
     console.log(JSON.stringify(apifyData, null, 2));
 
     if (!actorResponse.ok || apifyData.error) {
-      console.log("APIFY FAILED");
-
       return res.status(500).json({
         error: true,
         source: "apify",
         status: actorResponse.status,
-        message:
-          apifyData?.error?.message ||
-          "Apify request failed",
+        message: apifyData?.error?.message || "Apify request failed",
         details: apifyData
       });
     }
 
-    const exhibitors = Array.isArray(apifyData)
-      ? apifyData
-      : [];
+    const exhibitors = Array.isArray(apifyData) ? apifyData : [];
 
-const normalized = exhibitors
-  .filter(item =>
-    item.__company_name ||
-    item.companyName ||
-    item.name ||
-    item.title ||
-    item.exhibitorName
-  )
-  .map(item => normalizeExhibitor(item, eventId, eventURL))
-  .filter(item =>
-    item.companyName &&
-    !item.companyName.toLowerCase().includes("given url is not supported") &&
-    !item.companyName.toLowerCase().includes("please note")
-  );
+    const normalized = exhibitors
+      .filter(item =>
+        item.__company_name ||
+        item.companyName ||
+        item.name ||
+        item.title ||
+        item.exhibitorName
+      )
+      .map(item => normalizeExhibitor(item, eventId, startUrl))
+      .filter(item =>
+        item.companyName &&
+        !item.companyName.toLowerCase().includes("given url is not supported") &&
+        !item.companyName.toLowerCase().includes("please note")
+      );
 
-  if (normalized.length === 0) {
-  return res.status(200).json({
-    success: false,
-    eventId,
-    exhibitorsFound: 0,
-    leadsCreated: 0,
-    message: "No valid exhibitors found. The event URL may not be supported by this Apify actor."
-  });
-}
-
-    console.log("EXHIBITORS FOUND:", normalized.length);
+    if (normalized.length === 0) {
+      return res.status(200).json({
+        success: false,
+        eventId,
+        exhibitorsFound: 0,
+        leadsCreated: 0,
+        message: "No valid exhibitors found. The event URL may not be supported by this Apify actor."
+      });
+    }
 
     const createdRows = [];
 
