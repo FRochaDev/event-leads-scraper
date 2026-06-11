@@ -15,45 +15,12 @@ app.get("/", (req, res) => {
   });
 });
 
-/*app.post("/scrape-event", async (req, res) => {
-
-  try {
-
-    const { eventId, eventURL } = req.body;
-
-    console.log("=================================");
-    console.log("NEW SCRAPE REQUEST");
-    console.log("Event ID:", eventId);
-    console.log("Site:", eventURL);
-    console.log("=================================");
-
-    return res.status(200).json({
-      success: true,
-      eventId,
-      eventURL
-    });
-
-  } catch (error) {
-
-    console.error(error);
-
-    return res.status(500).json({
-      error: true,
-      message: error.message
-    });
-
-  }
-
-});*/
-
 app.post("/scrape-event", async (req, res) => {
-
   try {
-
-    const { eventId, eventURL } = req.body;
+    const { eventID, eventURL } = req.body;
 
     console.log("NEW SCRAPE REQUEST");
-    console.log("Event:", eventId);
+    console.log("Event:", eventID);
     console.log("URL:", eventURL);
 
     const actorResponse = await fetch(
@@ -73,35 +40,54 @@ app.post("/scrape-event", async (req, res) => {
       }
     );
 
-    const exhibitors = await actorResponse.json();
+    const apifyData = await actorResponse.json();
 
+    if (!actorResponse.ok || apifyData.error) {
+      return res.status(500).json({
+        error: true,
+        source: "apify",
+        message: apifyData?.error?.message || "Apify request failed",
+        details: apifyData
+      });
+    }
 
+    const exhibitors = Array.isArray(apifyData) ? apifyData : [];
 
-console.log(
-  "APIFY RESPONSE:"
-);
+    const normalized = exhibitors.map(item => ({
+      eventID,
+      companyName:
+        item.companyName ||
+        item.name ||
+        item.title ||
+        "",
+      website:
+        item.website ||
+        item.url ||
+        "",
+      sourceURL:
+        item.sourceURL ||
+        item.sourceUrl ||
+        eventURL,
+      raw: item
+    }));
 
-console.log(
-  JSON.stringify(exhibitors, null, 2)
-);
+    console.log("EXHIBITORS FOUND:", normalized.length);
 
-return res.status(200).json({
-  success: true
-});
-
-
+    return res.status(200).json({
+      success: true,
+      eventID,
+      exhibitorsFound: normalized.length,
+      preview: normalized.slice(0, 5)
+    });
 
   } catch (error) {
-
     console.error(error);
 
     return res.status(500).json({
       error: true,
       message: error.message
     });
-
   }
-
 });
 
 app.listen(PORT, () => {
