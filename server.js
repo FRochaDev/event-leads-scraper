@@ -14,6 +14,37 @@ app.get("/", (req, res) => {
   });
 });
 
+app.post("/scrape-event", async (req, res) => {
+
+  try {
+
+    const { eventId, site } = req.body;
+
+    console.log("=================================");
+    console.log("NEW SCRAPE REQUEST");
+    console.log("Event ID:", eventId);
+    console.log("Site:", site);
+    console.log("=================================");
+
+    return res.status(200).json({
+      success: true,
+      eventId,
+      site
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: true,
+      message: error.message
+    });
+
+  }
+
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
