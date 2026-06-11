@@ -10,86 +10,26 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 
-const normalized = exhibitors
-  .map(item => {
-    const companyName =
-      item.__company_name ||
-      item.companyName ||
-      item.name ||
-      item.title ||
-      "";
-
-    const website =
-      item._company_website ||
-      item.website ||
-      item.url ||
-      "";
-
-    const email =
-      item._company_email ||
-      item.email ||
-      item.contactEmail ||
-      item.companyEmail ||
-      "";
-
-    const sourceUrl =
-      item.___exhibitor_profile_url ||
-      item.sourceURL ||
-      item.sourceUrl ||
-      item.detailUrl ||
-      eventURL;
-
-    const country =
-      item._company_country ||
-      item.country ||
-      "";
-
-    return {
-      eventId,
-      companyName,
-      website,
-      email,
-      sourceUrl,
-      country
-    };
-  })
-  .filter(item => item.companyName);
-
 const leadsTable = glide.table({
   token: process.env.GLIDE_TOKEN,
   app: "4emgJAe0tdBbNwo2rEeq",
   table: "native-table-2q2iGRqESIW68SLykDwf",
   columns: {
     eventId: { type: "string", name: "wqqEw" },
-    country: { type: "string", name: "h1fz0" },
     companyName: { type: "string", name: "Zd1GL" },
     website: { type: "uri", name: "oSm1A" },
     websiteFound: { type: "boolean", name: "ltsRJ" },
     email: { type: "email-address", name: "Xz7P9" },
     emailFound: { type: "boolean", name: "GxyYQ" },
+    contactPage: { type: "uri", name: "Trypw" },
     sourceUrl: { type: "uri", name: "py9X9" },
+    country: { type: "string", name: "h1fz0" },
     selected: { type: "boolean", name: "8XjYu" },
     contacted: { type: "boolean", name: "Jz3lG" },
+    notes: { type: "string", name: "0LE4i" },
     confidence: { type: "number", name: "CsRyg" },
     createdAt: { type: "date-time", name: "5Jee0" }
   }
-
-  
-});
-
-await leadsTable.add({
-  eventId: exhibitor.eventId,
-  companyName: exhibitor.companyName,
-  website: exhibitor.website,
-  websiteFound: !!exhibitor.website,
-  email: exhibitor.email,
-  emailFound: !!exhibitor.email,
-  sourceUrl: exhibitor.sourceUrl,
-  country: exhibitor.country,
-  selected: false,
-  contacted: false,
-  confidence: exhibitor.email ? 90 : 50,
-  createdAt: new Date()
 });
 
 app.get("/", (req, res) => {
@@ -97,6 +37,51 @@ app.get("/", (req, res) => {
     status: "online"
   });
 });
+
+function normalizeExhibitor(item, eventId, eventURL) {
+  const companyName =
+    item.__company_name ||
+    item.companyName ||
+    item.name ||
+    item.title ||
+    item.exhibitorName ||
+    "";
+
+  const website =
+    item._company_website ||
+    item.website ||
+    item.url ||
+    item.companyWebsite ||
+    "";
+
+  const email =
+    item._company_email ||
+    item.email ||
+    item.contactEmail ||
+    item.companyEmail ||
+    "";
+
+  const sourceUrl =
+    item.___exhibitor_profile_url ||
+    item.sourceURL ||
+    item.sourceUrl ||
+    item.detailUrl ||
+    eventURL;
+
+  const country =
+    item._company_country ||
+    item.country ||
+    "";
+
+  return {
+    eventId,
+    companyName,
+    website,
+    email,
+    sourceUrl,
+    country
+  };
+}
 
 app.post("/scrape-event", async (req, res) => {
   console.log("HIT /scrape-event");
@@ -171,25 +156,7 @@ app.post("/scrape-event", async (req, res) => {
       : [];
 
     const normalized = exhibitors
-      .map(item => ({
-        eventId,
-        companyName:
-          item.companyName ||
-          item.name ||
-          item.title ||
-          item.exhibitorName ||
-          "",
-        website:
-          item.website ||
-          item.url ||
-          item.companyWebsite ||
-          "",
-        sourceUrl:
-          item.sourceURL ||
-          item.sourceUrl ||
-          item.detailUrl ||
-          eventURL
-      }))
+      .map(item => normalizeExhibitor(item, eventId, eventURL))
       .filter(item => item.companyName);
 
     console.log("EXHIBITORS FOUND:", normalized.length);
@@ -202,12 +169,15 @@ app.post("/scrape-event", async (req, res) => {
         companyName: exhibitor.companyName,
         website: exhibitor.website,
         websiteFound: !!exhibitor.website,
-        email: "",
-        emailFound: false,
+        email: exhibitor.email,
+        emailFound: !!exhibitor.email,
+        contactPage: "",
         sourceUrl: exhibitor.sourceUrl,
+        country: exhibitor.country,
         selected: false,
         contacted: false,
-        confidence: 50,
+        notes: "",
+        confidence: exhibitor.email ? 90 : 50,
         createdAt: new Date()
       });
 
