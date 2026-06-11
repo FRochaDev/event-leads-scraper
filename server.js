@@ -10,12 +10,58 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 
+const normalized = exhibitors
+  .map(item => {
+    const companyName =
+      item.__company_name ||
+      item.companyName ||
+      item.name ||
+      item.title ||
+      "";
+
+    const website =
+      item._company_website ||
+      item.website ||
+      item.url ||
+      "";
+
+    const email =
+      item._company_email ||
+      item.email ||
+      item.contactEmail ||
+      item.companyEmail ||
+      "";
+
+    const sourceUrl =
+      item.___exhibitor_profile_url ||
+      item.sourceURL ||
+      item.sourceUrl ||
+      item.detailUrl ||
+      eventURL;
+
+    const country =
+      item._company_country ||
+      item.country ||
+      "";
+
+    return {
+      eventId,
+      companyName,
+      website,
+      email,
+      sourceUrl,
+      country
+    };
+  })
+  .filter(item => item.companyName);
+
 const leadsTable = glide.table({
   token: process.env.GLIDE_TOKEN,
   app: "4emgJAe0tdBbNwo2rEeq",
   table: "native-table-2q2iGRqESIW68SLykDwf",
   columns: {
     eventId: { type: "string", name: "wqqEw" },
+    country: { type: "string", name: "h1fz0" },
     companyName: { type: "string", name: "Zd1GL" },
     website: { type: "uri", name: "oSm1A" },
     websiteFound: { type: "boolean", name: "ltsRJ" },
@@ -27,6 +73,23 @@ const leadsTable = glide.table({
     confidence: { type: "number", name: "CsRyg" },
     createdAt: { type: "date-time", name: "5Jee0" }
   }
+
+  
+});
+
+await leadsTable.add({
+  eventId: exhibitor.eventId,
+  companyName: exhibitor.companyName,
+  website: exhibitor.website,
+  websiteFound: !!exhibitor.website,
+  email: exhibitor.email,
+  emailFound: !!exhibitor.email,
+  sourceUrl: exhibitor.sourceUrl,
+  country: exhibitor.country,
+  selected: false,
+  contacted: false,
+  confidence: exhibitor.email ? 90 : 50,
+  createdAt: new Date()
 });
 
 app.get("/", (req, res) => {
