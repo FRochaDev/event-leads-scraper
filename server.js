@@ -18,18 +18,18 @@ app.post("/scrape-event", async (req, res) => {
 
   try {
 
-    const { eventId, site } = req.body;
+    const { eventId, eventURL } = req.body;
 
     console.log("=================================");
     console.log("NEW SCRAPE REQUEST");
     console.log("Event ID:", eventId);
-    console.log("Site:", site);
+    console.log("Site:", eventURL);
     console.log("=================================");
 
     return res.status(200).json({
       success: true,
       eventId,
-      site
+      eventURL
     });
 
   } catch (error) {
