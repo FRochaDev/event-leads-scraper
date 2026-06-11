@@ -36,16 +36,28 @@ app.get("/", (req, res) => {
 });
 
 app.post("/scrape-event", async (req, res) => {
-
   console.log("HIT /scrape-event");
-console.log("BODY:", req.body);
+  console.log("BODY:", req.body);
+
   try {
-    const { eventId, eventURL } = req.body || {};
+    const body = req.body || {};
+
+    const eventId =
+      body.eventId ||
+      body.eventID ||
+      body.id;
+
+    const eventURL =
+      body.eventURL ||
+      body.eventUrl ||
+      body.site ||
+      body.url;
 
     if (!eventId || !eventURL) {
       return res.status(400).json({
         error: true,
-        message: "eventId and eventURL are required"
+        message: "eventId and eventURL are required",
+        received: body
       });
     }
 
@@ -54,56 +66,50 @@ console.log("BODY:", req.body);
     console.log("URL:", eventURL);
 
     const actorResponse = await fetch(
-  `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      startUrls: [
-        {
-          url: eventURL
-        }
-      ]
-    })
-  }
-);
+      `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          startUrls: [
+            {
+              url: eventURL
+            }
+          ]
+        })
+      }
+    );
 
-console.log("APIFY STATUS:", actorResponse.status);
-
-
-
-console.log("APIFY DATA:");
-console.log(JSON.stringify(apifyData, null, 2));
-
-if (!actorResponse.ok || apifyData.error) {
-  console.log("APIFY FAILED");
-
-  return res.status(500).json({
-    error: true,
-    source: "apify",
-    status: actorResponse.status,
-    message: apifyData?.error?.message || "Apify request failed",
-    details: apifyData
-  });
-}
+    console.log("APIFY STATUS:", actorResponse.status);
 
     const apifyData = await actorResponse.json();
 
+    console.log("APIFY DATA:");
+    console.log(JSON.stringify(apifyData, null, 2));
+
     if (!actorResponse.ok || apifyData.error) {
+      console.log("APIFY FAILED");
+
       return res.status(500).json({
         error: true,
         source: "apify",
-        message: apifyData?.error?.message || "Apify request failed",
+        status: actorResponse.status,
+        message:
+          apifyData?.error?.message ||
+          "Apify request failed",
         details: apifyData
       });
     }
 
-    const exhibitors = Array.isArray(apifyData) ? apifyData : [];
+    const exhibitors = Array.isArray(apifyData)
+      ? apifyData
+      : [];
+
     const normalized = exhibitors
       .map(item => ({
-        eventId: eventId ,
+        eventId,
         companyName:
           item.companyName ||
           item.name ||
@@ -147,7 +153,7 @@ if (!actorResponse.ok || apifyData.error) {
 
     return res.status(200).json({
       success: true,
-      eventID,
+      eventId,
       exhibitorsFound: normalized.length,
       leadsCreated: createdRows.length,
       preview: normalized.slice(0, 5)
@@ -158,8 +164,7 @@ if (!actorResponse.ok || apifyData.error) {
 
     return res.status(500).json({
       error: true,
-      message: error.message,
-      stack: error.stack
+      message: error.message
     });
   }
 });
