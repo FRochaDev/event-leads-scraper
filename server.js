@@ -123,7 +123,7 @@ app.post("/scrape-event", async (req, res) => {
 body: JSON.stringify({
   start_url: eventURL,
   get_booth_sizes: false,
-  output_type: "multi_row",
+  output_type: "single_row",
   result_limit: 50
 })
       }
