@@ -34,46 +34,17 @@ app.get("/", (req, res) => {
     status: "online"
   });
 });
+
 app.post("/scrape-event", async (req, res) => {
   try {
-    const { eventID, eventURL } = req.body;
+    const { eventID, eventURL } = req.body || {};
 
-    console.log("NEW MOCK SCRAPE REQUEST");
-    console.log("Event:", eventID);
-    console.log("URL:", eventURL);
-
-    const rowId = await leadsTable.add({
-      eventId: eventID,
-      companyName: "Test Exhibitor",
-      website: "https://example.com",
-      websiteFound: true,
-      email: "",
-      emailFound: false,
-      sourceUrl: eventURL,
-      selected: false,
-      contacted: false,
-      confidence: 100,
-      createdAt: new Date()
-    });
-
-    return res.status(200).json({
-      success: true,
-      mode: "mock",
-      rowId
-    });
-
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      error: true,
-      message: error.message
-    });
-  }
-});
-/*app.post("/scrape-event", async (req, res) => {
-  try {
-    const { eventID, eventURL } = req.body;
+    if (!eventID || !eventURL) {
+      return res.status(400).json({
+        error: true,
+        message: "eventID and eventURL are required"
+      });
+    }
 
     console.log("NEW SCRAPE REQUEST");
     console.log("Event:", eventID);
@@ -109,44 +80,55 @@ app.post("/scrape-event", async (req, res) => {
 
     const exhibitors = Array.isArray(apifyData) ? apifyData : [];
 
-    const normalized = exhibitors.map(item => ({
-      eventID,
-      companyName:
-        item.companyName ||
-        item.name ||
-        item.title ||
-        "",
-      website:
-        item.website ||
-        item.url ||
-        "",
-      sourceURL:
-        item.sourceURL ||
-        item.sourceUrl ||
-        eventURL,
-      raw: item
-    }));
+    const normalized = exhibitors
+      .map(item => ({
+        eventId: eventID,
+        companyName:
+          item.companyName ||
+          item.name ||
+          item.title ||
+          item.exhibitorName ||
+          "",
+        website:
+          item.website ||
+          item.url ||
+          item.companyWebsite ||
+          "",
+        sourceUrl:
+          item.sourceURL ||
+          item.sourceUrl ||
+          item.detailUrl ||
+          eventURL
+      }))
+      .filter(item => item.companyName);
 
     console.log("EXHIBITORS FOUND:", normalized.length);
 
-    await leadsTable.add({
-  eventId: eventID,
-  companyName: "Test Exhibitor",
-  website: "https://example.com",
-  websiteFound: true,
-  email: "",
-  emailFound: false,
-  sourceUrl: eventURL,
-  selected: false,
-  contacted: false,
-  confidence: 100,
-  createdAt: new Date()
-});
+    const createdRows = [];
+
+    for (const exhibitor of normalized) {
+      const rowId = await leadsTable.add({
+        eventId: exhibitor.eventId,
+        companyName: exhibitor.companyName,
+        website: exhibitor.website,
+        websiteFound: !!exhibitor.website,
+        email: "",
+        emailFound: false,
+        sourceUrl: exhibitor.sourceUrl,
+        selected: false,
+        contacted: false,
+        confidence: 50,
+        createdAt: new Date()
+      });
+
+      createdRows.push(rowId);
+    }
 
     return res.status(200).json({
       success: true,
       eventID,
       exhibitorsFound: normalized.length,
+      leadsCreated: createdRows.length,
       preview: normalized.slice(0, 5)
     });
 
@@ -158,7 +140,7 @@ app.post("/scrape-event", async (req, res) => {
       message: error.message
     });
   }
-});*/
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
