@@ -41,17 +41,17 @@ app.post("/scrape-event", async (req, res) => {
   console.log("BODY:", req.body);
 
   try {
-    const { eventID, eventURL } = req.body || {};
+    const { eventId, eventURL } = req.body || {};
 
-    if (!eventID || !eventURL) {
+    if (!eventId || !eventURL) {
       return res.status(400).json({
         error: true,
-        message: "eventID and eventURL are required"
+        message: "eventId and eventURL are required"
       });
     }
 
     console.log("NEW SCRAPE REQUEST");
-    console.log("Event:", eventID);
+    console.log("Event:", eventId);
     console.log("URL:", eventURL);
 
     const actorResponse = await fetch(
@@ -83,10 +83,9 @@ app.post("/scrape-event", async (req, res) => {
     }
 
     const exhibitors = Array.isArray(apifyData) ? apifyData : [];
-
     const normalized = exhibitors
       .map(item => ({
-        eventId: eventID,
+        eventId: eventId ,
         companyName:
           item.companyName ||
           item.name ||
