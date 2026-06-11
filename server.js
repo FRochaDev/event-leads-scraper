@@ -121,10 +121,8 @@ app.post("/scrape-event", async (req, res) => {
           "Content-Type": "application/json"
         },
 body: JSON.stringify({
+  evenId: eventId,
   start_url: eventURL,
-  get_booth_sizes: false,
-  output_type: "single_row",
-  result_limit: 50
 })
       }
     );
