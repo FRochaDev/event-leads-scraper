@@ -346,7 +346,8 @@ Return ONLY valid JSON with this exact structure:
     ?.map(block => block.text)
     ?.join("")
     ?.trim();
-
+console.log("CLAUDE RESPONSE:");
+console.log(text);
   return JSON.parse(text);
 }
 
