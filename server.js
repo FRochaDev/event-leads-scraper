@@ -279,7 +279,7 @@ return res.status(500).json({
 });*/
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-/*async function findPersonContactWithAnthropic(companyName, eventName) {
+async function findPersonContactWithAnthropic(companyName, eventName) {
   const prompt = `
 You are a B2B data extraction tool.
 
@@ -353,7 +353,7 @@ if (!jsonMatch) {
 }
 
 return JSON.parse(jsonMatch[1]);
-}*/
+}
 app.post("/enrich-event-contacts", async (req, res) => {
   console.log("HIT /enrich-event-contacts");
   console.log("BODY:", req.body);
