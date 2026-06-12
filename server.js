@@ -245,7 +245,108 @@ return res.status(500).json({
 });
   }
 });
+app.post("/find-person-contact", async (req, res) => {
+  try {
+    const { companyName, eventName } = req.body || {};
 
+    if (!companyName || !eventName) {
+      return res.status(400).json({
+        error: true,
+        message: "companyName and eventName are required"
+      });
+    }
+
+    const result = await findPersonContactWithAnthropic(
+      companyName,
+      eventName
+    );
+
+    return res.status(200).json({
+      success: true,
+      result
+    });
+
+  } catch (error) {
+    console.error("ANTHROPIC CONTACT ERROR:", error);
+
+    return res.status(500).json({
+      error: true,
+      message: error.message
+    });
+  }
+});
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+async function findPersonContactWithAnthropic(companyName, eventName) {
+  const prompt = `
+You are a B2B data extraction tool.
+
+Identify the single best person at "${companyName}" to receive an email promoting trade show stand construction services for the event "${eventName}".
+
+Prefer:
+- marketing manager
+- events manager
+- trade show / exhibition manager
+- partnerships / business development
+- sales or commercial manager
+
+Use only publicly available information.
+If a direct person's email is unavailable, return the most relevant public company email.
+If the event is canceled, return "Yes" in canceled, otherwise "No".
+
+Return ONLY valid JSON with this exact structure:
+{
+  "company": "${companyName}",
+  "contact_first_name": "",
+  "contact_last_name": "",
+  "contact_email": "",
+  "contact_role": "",
+  "source_url": "",
+  "confidence": 0,
+  "canceled": "No"
+}
+`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 5
+        }
+      ],
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  const text = data.content
+    ?.filter(block => block.type === "text")
+    ?.map(block => block.text)
+    ?.join("")
+    ?.trim();
+
+  return JSON.parse(text);
+}
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
