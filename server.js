@@ -246,6 +246,8 @@ return res.status(500).json({
   }
 });
 app.post("/find-person-contact", async (req, res) => {
+    console.log("FIND PERSON CONTACT");
+  console.log("BODY:", req.body);
   try {
     const { companyName, eventName } = req.body || {};
 
