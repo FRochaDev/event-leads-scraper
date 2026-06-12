@@ -375,7 +375,8 @@ const eventLeads = allLeads.filter(lead =>
   lead.eventId === eventId &&
   lead.companyName
 );
-
+  console.log("TOTAL LEADS:", allLeads.length);
+console.log("SAMPLE LEAD:", JSON.stringify(allLeads[0], null, 2));
     console.log("LEADS TO ENRICH:", eventLeads.length);
 
     const results = [];
