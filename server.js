@@ -346,9 +346,13 @@ Return ONLY valid JSON with this exact structure:
     ?.map(block => block.text)
     ?.join("")
     ?.trim();
-console.log("CLAUDE RESPONSE:");
-console.log(text);
-  return JSON.parse(text);
+const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+
+if (!jsonMatch) {
+  throw new Error("No JSON block found in Claude response");
+}
+
+return JSON.parse(jsonMatch[1]);
 }
 
 app.listen(PORT, () => {
