@@ -9,6 +9,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const leadsTable = glide.table({
   token: process.env.GLIDE_TOKEN,
@@ -19,14 +20,16 @@ const leadsTable = glide.table({
     companyName: { type: "string", name: "Zd1GL" },
     website: { type: "uri", name: "oSm1A" },
     websiteFound: { type: "boolean", name: "ltsRJ" },
+
     email: { type: "email-address", name: "Xz7P9" },
     emailFound: { type: "boolean", name: "GxyYQ" },
-            emailContact: { type: "email-address", name: "mzBFs" },
 
+    emailContact: { type: "email-address", name: "mzBFs" },
     contactFirstName: { type: "string", name: "gZOTI" },
-contactLastName: { type: "string", name: "bozIA" },
-contactRole: { type: "string", name: "YNPib" },
-contactSourceUrl: { type: "uri", name: "vpvOh" },
+    contactLastName: { type: "string", name: "bozIA" },
+    contactRole: { type: "string", name: "YNPib" },
+    contactSourceUrl: { type: "uri", name: "vpvOh" },
+
     contactPage: { type: "uri", name: "Trypw" },
     sourceUrl: { type: "uri", name: "py9X9" },
     country: { type: "string", name: "h1fz0" },
@@ -58,6 +61,10 @@ const eventsTable = glide.table({
 app.get("/", (req, res) => {
   res.json({ status: "online" });
 });
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function normalizeExhibitor(item, eventId, startUrl) {
   return {
@@ -94,203 +101,12 @@ function normalizeExhibitor(item, eventId, startUrl) {
   };
 }
 
-app.post("/scrape-event", async (req, res) => {
-  console.log("HIT /scrape-event");
-  console.log("BODY:", req.body);
-
-  try {
-    const body = req.body || {};
-
-    const eventId =
-      body.eventId ||
-      body.eventID ||
-      body.id;
-
-    const startUrl =
-      body.start_url ||
-      body.eventURL ||
-      body.eventUrl ||
-      body.site ||
-      body.url;
-
-      const resultLimit = Math.min(
-  Number(body.result_limit) || 50,
-  100
-);
-
-    if (!eventId || !startUrl) {
-      return res.status(400).json({
-        error: true,
-        message: "eventId and start_url are required",
-        received: body
-      });
-    }
-
-    const actorResponse = await fetch(
-      `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          get_booth_sizes: false,
-          output_type: "single_row",
-          result_limit: resultLimit,
-          start_url: startUrl
-        })
-      }
-    );
-
-    console.log("APIFY STATUS:", actorResponse.status);
-
-    const apifyData = await actorResponse.json();
-
-
-    if (!actorResponse.ok || apifyData.error) {
-await eventsTable.update(eventId, {
-  scrappingStatus: "Failed",
-  lastScrapped: new Date(),
-  responseStatus: String(actorResponse.status),
-  responseBody: JSON.stringify(apifyData)
-});
-
-return res.status(500).json({
-  error: true,
-  source: "apify",
-  status: actorResponse.status,
-  message: apifyData?.error?.message || "Apify request failed",
-  details: apifyData
-});
-    }
-
-    const exhibitors = Array.isArray(apifyData) ? apifyData : [];
-
-    const normalized = exhibitors
-      .filter(item =>
-        item.__company_name ||
-        item.companyName ||
-        item.name ||
-        item.title ||
-        item.exhibitorName
-      )
-      .map(item => normalizeExhibitor(item, eventId, startUrl))
-      .filter(item =>
-        item.companyName &&
-        !item.companyName.toLowerCase().includes("given url is not supported") &&
-        !item.companyName.toLowerCase().includes("please note")
-      );
-
-    if (normalized.length === 0) {
-      return res.status(200).json({
-        success: false,
-        eventId,
-        exhibitorsFound: 0,
-        leadsCreated: 0,
-        message: "No valid exhibitors found. The event URL may not be supported by this Apify actor."
-      });
-    }
-
-    const createdRows = [];
-
-    for (const exhibitor of normalized) {
-      const rowId = await leadsTable.add({
-        eventId: exhibitor.eventId,
-        companyName: exhibitor.companyName,
-        website: exhibitor.website,
-        websiteFound: !!exhibitor.website,
-        email: exhibitor.email,
-        emailFound: !!exhibitor.email,
-        contactPage: "",
-        sourceUrl: exhibitor.sourceUrl,
-        country: exhibitor.country,
-        selected: false,
-        contacted: false,
-        notes: "",
-        confidence: exhibitor.email ? 90 : 50,
-        createdAt: new Date()
-      });
-
-      createdRows.push(rowId);
-    }
-
-await eventsTable.update(eventId, {
-  scrappingStatus: "Completed",
-  leadsFound: createdRows.length,
-  lastScrapped: new Date(),
-  responseStatus: "200",
-  responseBody: JSON.stringify({
-    exhibitorsFound: normalized.length,
-    leadsCreated: createdRows.length
-  })
-});
-
-return res.status(200).json({
-  success: true,
-  eventId,
-  exhibitorsFound: normalized.length,
-  leadsCreated: createdRows.length,
-  preview: normalized.slice(0, 5)
-});
-
-  } catch (error) {
-    console.error("SCRAPE EVENT ERROR:", error);
-
-    try {
-  await eventsTable.update(eventId, {
-    scrappingStatus: "Failed",
-    lastScrapped: new Date(),
-    responseStatus: "500",
-    responseBody: error.message
-  });
-} catch {}
-
-return res.status(500).json({
-  error: true,
-  message: error.message
-});
-  }
-});
-/*app.post("/find-person-contact", async (req, res) => {
-    console.log("FIND PERSON CONTACT");
-  console.log("BODY:", req.body);
-  try {
-    const { companyName, eventName } = req.body || {};
-
-    if (!companyName || !eventName) {
-      return res.status(400).json({
-        error: true,
-        message: "companyName and eventName are required"
-      });
-    }
-
-    const result = await findPersonContactWithAnthropic(
-      companyName,
-      eventName
-    );
-
-    return res.status(200).json({
-      success: true,
-      result
-    });
-
-  } catch (error) {
-    console.error("ANTHROPIC CONTACT ERROR:", error);
-
-    return res.status(500).json({
-      error: true,
-      message: error.message
-    });
-  }
-});*/
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-
 async function findPersonContactWithAnthropic(companyName, eventName) {
-const prompt = `
+  const prompt = `
 Company: ${companyName}
 Event: ${eventName}
 
-Find the best marketing, events, exhibition, partnerships or business development contact.
+Find the best marketing, events, exhibition, partnerships, sales or business development contact for this company.
 
 Return ONLY valid JSON:
 
@@ -344,127 +160,253 @@ Return ONLY valid JSON:
     ?.join("")
     ?.trim();
 
-    console.log("CLAUDE RAW RESPONSE:");
-console.log(
-  "FULL ANTHROPIC RESPONSE:",
-  JSON.stringify(data, null, 2)
-);
+  const jsonBlockMatch = text?.match(/```json\s*([\s\S]*?)\s*```/);
 
-console.log("TEXT:");
-console.log(text);
-const jsonBlockMatch =
-  text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonBlockMatch) {
+    return JSON.parse(jsonBlockMatch[1]);
+  }
 
-if (jsonBlockMatch) {
-  return JSON.parse(jsonBlockMatch[1]);
+  const jsonObjectMatch = text?.match(/\{[\s\S]*\}/);
+
+  if (jsonObjectMatch) {
+    return JSON.parse(jsonObjectMatch[0]);
+  }
+
+  throw new Error("No JSON found in Claude response");
 }
 
-const jsonObjectMatch =
-  text.match(/\{[\s\S]*\}/);
-
-if (jsonObjectMatch) {
-  return JSON.parse(jsonObjectMatch[0]);
-}
-
-throw new Error("No JSON found in Claude response");
-
-return JSON.parse(jsonMatch[1]);
-}
-app.post("/enrich-event-contacts", async (req, res) => {
-  console.log("HIT /enrich-event-contacts");
+app.post("/scrape-event", async (req, res) => {
+  console.log("HIT /scrape-event");
   console.log("BODY:", req.body);
 
-  try {
-    const { eventId, eventName } = req.body || {};
+  const body = req.body || {};
 
-    if (!eventId || !eventName) {
-      return res.status(400).json({
+  const eventId = body.eventId;
+  const eventName = body.eventName;
+  const startUrl = body.start_url;
+
+  const resultLimit = Math.min(
+    Number(body.result_limit) || 20,
+    100
+  );
+
+  const enrichLimit = Math.min(
+    Number(body.enrich_limit) || 5,
+    20
+  );
+
+  if (!eventId || !eventName || !startUrl) {
+    return res.status(400).json({
+      error: true,
+      message: "eventId, eventName and start_url are required",
+      received: body
+    });
+  }
+
+  try {
+    await eventsTable.update(eventId, {
+      scrappingStatus: "Running",
+      lastScrapped: new Date()
+    });
+
+    const actorResponse = await fetch(
+      `https://api.apify.com/v2/acts/skython~exhibitor-list-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          get_booth_sizes: false,
+          output_type: "single_row",
+          result_limit: resultLimit,
+          start_url: startUrl
+        })
+      }
+    );
+
+    console.log("APIFY STATUS:", actorResponse.status);
+
+    const apifyData = await actorResponse.json();
+
+    if (!actorResponse.ok || apifyData.error) {
+      await eventsTable.update(eventId, {
+        scrappingStatus: "Failed",
+        lastScrapped: new Date(),
+        responseStatus: String(actorResponse.status),
+        responseBody: JSON.stringify(apifyData)
+      });
+
+      return res.status(500).json({
         error: true,
-        message: "eventId and eventName are required",
-        received: req.body
+        source: "apify",
+        status: actorResponse.status,
+        message: apifyData?.error?.message || "Apify request failed",
+        details: apifyData
       });
     }
 
-    const allLeads = await leadsTable.get();
+    const exhibitors = Array.isArray(apifyData) ? apifyData : [];
 
-const eventLeads = allLeads
-  .filter(lead =>
-    lead.eventId === eventId &&
-    lead.companyName
-  )
-  .slice(0, 5);
-  console.log("TOTAL LEADS:", allLeads.length);
-console.log("SAMPLE LEAD:", JSON.stringify(allLeads[0], null, 2));
-    console.log("LEADS TO ENRICH:", eventLeads.length);
+    const normalized = exhibitors
+      .filter(item =>
+        item.__company_name ||
+        item.companyName ||
+        item.name ||
+        item.title ||
+        item.exhibitorName
+      )
+      .map(item => normalizeExhibitor(item, eventId, startUrl))
+      .filter(item =>
+        item.companyName &&
+        !item.companyName.toLowerCase().includes("given url is not supported") &&
+        !item.companyName.toLowerCase().includes("please note")
+      );
 
-    const results = [];
-console.log(
-  "FIRST LEAD:",
-  JSON.stringify(eventLeads[0], null, 2)
-);
-  for (const lead of eventLeads) {
+    if (normalized.length === 0) {
+      await eventsTable.update(eventId, {
+        scrappingStatus: "Completed - no valid exhibitors",
+        leadsFound: 0,
+        lastScrapped: new Date(),
+        responseStatus: "200",
+        responseBody: "No valid exhibitors found"
+      });
 
-  await new Promise(resolve =>
-    setTimeout(resolve, 1500)
-  );
+      return res.status(200).json({
+        success: false,
+        eventId,
+        exhibitorsFound: 0,
+        leadsCreated: 0,
+        contactsProcessed: 0,
+        message: "No valid exhibitors found."
+      });
+    }
 
-  try {
+    const createdLeads = [];
 
-    const contact = await findPersonContactWithAnthropic(
-      lead.companyName,
-      eventName
-    );
+    for (const exhibitor of normalized) {
+      const rowId = await leadsTable.add({
+        eventId: exhibitor.eventId,
+        companyName: exhibitor.companyName,
+        website: exhibitor.website,
+        websiteFound: !!exhibitor.website,
 
-    await leadsTable.update(lead.$rowID, {
-      contactFirstName: contact.contact_first_name || "",
-      contactLastName: contact.contact_last_name || "",
-      contactRole: contact.contact_role || "",
-      contactSourceUrl: contact.source_url || "",
+        email: exhibitor.email,
+        emailFound: !!exhibitor.email,
 
-      emailContact: contact.contact_email || "",
-emailFound: !!contact.contact_email,
+        emailContact: "",
+        contactFirstName: "",
+        contactLastName: "",
+        contactRole: "",
+        contactSourceUrl: "",
 
-      confidence: contact.confidence || 0
+        contactPage: "",
+        sourceUrl: exhibitor.sourceUrl,
+        country: exhibitor.country,
+        selected: false,
+        contacted: false,
+        notes: "",
+        confidence: exhibitor.email ? 90 : 50,
+        createdAt: new Date()
+      });
+
+      createdLeads.push({
+        rowId,
+        ...exhibitor
+      });
+    }
+
+    console.log("LEADS CREATED:", createdLeads.length);
+
+    const enrichResults = [];
+    const leadsToEnrich = createdLeads.slice(0, enrichLimit);
+
+    for (const lead of leadsToEnrich) {
+      await sleep(1500);
+
+      try {
+        const contact = await findPersonContactWithAnthropic(
+          lead.companyName,
+          eventName
+        );
+
+        await leadsTable.update(lead.rowId, {
+          contactFirstName: contact.contact_first_name || "",
+          contactLastName: contact.contact_last_name || "",
+          contactRole: contact.contact_role || "",
+          contactSourceUrl: contact.source_url || "",
+
+          emailContact: contact.contact_email || "",
+
+          confidence: contact.confidence || 0
+        });
+
+        enrichResults.push({
+          companyName: lead.companyName,
+          success: true,
+          emailContact: contact.contact_email || "",
+          contactName:
+            `${contact.contact_first_name || ""} ${contact.contact_last_name || ""}`.trim(),
+          role: contact.contact_role || "",
+          confidence: contact.confidence || 0
+        });
+
+      } catch (error) {
+        console.log(
+          "ENRICH ERROR:",
+          lead.companyName,
+          error.message
+        );
+
+        enrichResults.push({
+          companyName: lead.companyName,
+          success: false,
+          error: error.message
+        });
+
+        if (
+          error.message.includes("rate_limit_error") ||
+          error.message.includes("rate limit")
+        ) {
+          console.log("RATE LIMIT HIT — STOPPING ENRICHMENT");
+          break;
+        }
+      }
+    }
+
+    await eventsTable.update(eventId, {
+      scrappingStatus: "Completed",
+      leadsFound: createdLeads.length,
+      lastScrapped: new Date(),
+      responseStatus: "200",
+      responseBody: JSON.stringify({
+        exhibitorsFound: normalized.length,
+        leadsCreated: createdLeads.length,
+        contactsProcessed: enrichResults.length
+      })
     });
-
-    results.push({
-      companyName: lead.companyName,
-      success: true,
-      email: contact.contact_email || "",
-      contactName:
-        `${contact.contact_first_name || ""} ${contact.contact_last_name || ""}`.trim()
-    });
-
-  } catch (error) {
-
-  results.push({
-    companyName: lead.companyName,
-    success: false,
-    error: error.message
-  });
-
-  if (
-    error.message.includes("rate_limit_error") ||
-    error.message.includes("rate limit")
-  ) {
-    console.log("RATE LIMIT HIT — STOPPING LOOP");
-    break;
-  }
-
-}
-
-  }
 
     return res.status(200).json({
       success: true,
       eventId,
       eventName,
-      leadsProcessed: eventLeads.length,
-      results
+      exhibitorsFound: normalized.length,
+      leadsCreated: createdLeads.length,
+      contactsProcessed: enrichResults.length,
+      enrichResults
     });
 
   } catch (error) {
-    console.error("ENRICH EVENT CONTACTS ERROR:", error);
+    console.error("SCRAPE EVENT ERROR:", error);
+
+    try {
+      await eventsTable.update(eventId, {
+        scrappingStatus: "Failed",
+        lastScrapped: new Date(),
+        responseStatus: "500",
+        responseBody: error.message
+      });
+    } catch {}
 
     return res.status(500).json({
       error: true,
@@ -472,5 +414,7 @@ emailFound: !!contact.contact_email,
     });
   }
 });
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)});
+  console.log(`Server running on port ${PORT}`);
+});
