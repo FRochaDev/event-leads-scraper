@@ -371,11 +371,10 @@ app.post("/enrich-event-contacts", async (req, res) => {
 
     const allLeads = await leadsTable.get();
 
-    const eventLeads = allLeads.filter(lead =>
-      lead.eventId === eventId &&
-      lead.companyName &&
-      !lead.emailFound
-    );
+const eventLeads = allLeads.filter(lead =>
+  lead.eventId === eventId &&
+  lead.companyName
+);
 
     console.log("LEADS TO ENRICH:", eventLeads.length);
 
