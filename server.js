@@ -318,7 +318,7 @@ Return ONLY valid JSON with this exact structure:
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 1024,
+      max_tokens: 300,
       tools: [
         {
           type: "web_search_20250305",
@@ -371,10 +371,12 @@ app.post("/enrich-event-contacts", async (req, res) => {
 
     const allLeads = await leadsTable.get();
 
-const eventLeads = allLeads.filter(lead =>
-  lead.eventId === eventId &&
-  lead.companyName
-);
+const eventLeads = allLeads
+  .filter(lead =>
+    lead.eventId === eventId &&
+    lead.companyName
+  )
+  .slice(0, 5);
   console.log("TOTAL LEADS:", allLeads.length);
 console.log("SAMPLE LEAD:", JSON.stringify(allLeads[0], null, 2));
     console.log("LEADS TO ENRICH:", eventLeads.length);
