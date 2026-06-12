@@ -280,32 +280,23 @@ return res.status(500).json({
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 async function findPersonContactWithAnthropic(companyName, eventName) {
-  const prompt = `
-You are a B2B data extraction tool.
+const prompt = `
+Company: ${companyName}
+Event: ${eventName}
 
-Identify the single best person at "${companyName}" to receive an email promoting trade show stand construction services for the event "${eventName}".
+Find the best marketing, events, exhibition, partnerships or business development contact.
 
-Prefer:
-- marketing manager
-- events manager
-- trade show / exhibition manager
-- partnerships / business development
-- sales or commercial manager
+Return ONLY valid JSON:
 
-Use only publicly available information.
-If a direct person's email is unavailable, return the most relevant public company email.
-If the event is canceled, return "Yes" in canceled, otherwise "No".
-
-Return ONLY valid JSON with this exact structure:
 {
-  "company": "${companyName}",
-  "contact_first_name": "",
-  "contact_last_name": "",
-  "contact_email": "",
-  "contact_role": "",
-  "source_url": "",
-  "confidence": 0,
-  "canceled": "No"
+  "company":"",
+  "contact_first_name":"",
+  "contact_last_name":"",
+  "contact_email":"",
+  "contact_role":"",
+  "source_url":"",
+  "confidence":0,
+  "canceled":"No"
 }
 `;
 
@@ -346,6 +337,9 @@ Return ONLY valid JSON with this exact structure:
     ?.map(block => block.text)
     ?.join("")
     ?.trim();
+
+    console.log("CLAUDE RAW RESPONSE:");
+console.log(text);
 const jsonBlockMatch =
   text.match(/```json\s*([\s\S]*?)\s*```/);
 
