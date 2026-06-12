@@ -385,6 +385,11 @@ console.log(
   JSON.stringify(eventLeads[0], null, 2)
 );
   for (const lead of eventLeads) {
+    
+  await new Promise(resolve =>
+    setTimeout(resolve, 1500)
+  );
+
   try {
 
     const contact = await findPersonContactWithAnthropic(
