@@ -346,11 +346,21 @@ Return ONLY valid JSON with this exact structure:
     ?.map(block => block.text)
     ?.join("")
     ?.trim();
-const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+const jsonBlockMatch =
+  text.match(/```json\s*([\s\S]*?)\s*```/);
 
-if (!jsonMatch) {
-  throw new Error("No JSON block found in Claude response");
+if (jsonBlockMatch) {
+  return JSON.parse(jsonBlockMatch[1]);
 }
+
+const jsonObjectMatch =
+  text.match(/\{[\s\S]*\}/);
+
+if (jsonObjectMatch) {
+  return JSON.parse(jsonObjectMatch[0]);
+}
+
+throw new Error("No JSON found in Claude response");
 
 return JSON.parse(jsonMatch[1]);
 }
@@ -421,20 +431,23 @@ console.log(
 
   } catch (error) {
 
-    console.error(
-      "ENRICH ERROR:",
-      lead.companyName,
-      error.message
-    );
+  results.push({
+    companyName: lead.companyName,
+    success: false,
+    error: error.message
+  });
 
-    results.push({
-      companyName: lead.companyName,
-      success: false,
-      error: error.message
-    });
+  if (
+    error.message.includes("rate_limit_error") ||
+    error.message.includes("rate limit")
+  ) {
+    console.log("RATE LIMIT HIT — STOPPING LOOP");
+    break;
+  }
+
+}
 
   }
-}
 
     return res.status(200).json({
       success: true,
