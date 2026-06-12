@@ -314,7 +314,7 @@ Return ONLY valid JSON:
         {
           type: "web_search_20250305",
           name: "web_search",
-          max_uses: 5
+          max_uses: 1
         }
       ],
       messages: [
@@ -338,7 +338,12 @@ Return ONLY valid JSON:
     ?.join("")
     ?.trim();
 
-    console.log("CLAUDE RAW RESPONSE:");
+console.log(
+  "FULL ANTHROPIC RESPONSE:",
+  JSON.stringify(data, null, 2)
+);
+
+console.log("TEXT:");
 console.log(text);
 const jsonBlockMatch =
   text.match(/```json\s*([\s\S]*?)\s*```/);
