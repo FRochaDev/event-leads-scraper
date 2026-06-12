@@ -10,44 +10,48 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 
-const leadsTable = glide.table({
-  token: process.env.GLIDE_TOKEN,
-  app: "4emgJAe0tdBbNwo2rEeq",
-  table: "native-table-2q2iGRqESIW68SLykDwf",
-  columns: {
-    eventId: { type: "string", name: "wqqEw" },
-    companyName: { type: "string", name: "Zd1GL" },
-    website: { type: "uri", name: "oSm1A" },
-    websiteFound: { type: "boolean", name: "ltsRJ" },
-    email: { type: "email-address", name: "Xz7P9" },
-    emailFound: { type: "boolean", name: "GxyYQ" },
-    contactPage: { type: "uri", name: "Trypw" },
-    sourceUrl: { type: "uri", name: "py9X9" },
-    country: { type: "string", name: "h1fz0" },
-    selected: { type: "boolean", name: "8XjYu" },
-    contacted: { type: "boolean", name: "Jz3lG" },
-    notes: { type: "string", name: "0LE4i" },
-    confidence: { type: "number", name: "CsRyg" },
-    createdAt: { type: "date-time", name: "5Jee0" }
-  }
-});
+  const leadsTable = glide.table({
+    token: process.env.GLIDE_TOKEN,
+    app: "4emgJAe0tdBbNwo2rEeq",
+    table: "native-table-2q2iGRqESIW68SLykDwf",
+    columns: {
+      eventId: { type: "string", name: "wqqEw" },
+      companyName: { type: "string", name: "Zd1GL" },
+      website: { type: "uri", name: "oSm1A" },
+      websiteFound: { type: "boolean", name: "ltsRJ" },
+      email: { type: "email-address", name: "Xz7P9" },
+      emailFound: { type: "boolean", name: "GxyYQ" },
+      contactFirstName: { type: "string", name: "gZOTI" },
+contactLastName: { type: "string", name: "bozIA" },
+contactRole: { type: "string", name: "YNPib" },
+contactSourceUrl: { type: "uri", name: "vpvOh" },
+      contactPage: { type: "uri", name: "Trypw" },
+      sourceUrl: { type: "uri", name: "py9X9" },
+      country: { type: "string", name: "h1fz0" },
+      selected: { type: "boolean", name: "8XjYu" },
+      contacted: { type: "boolean", name: "Jz3lG" },
+      notes: { type: "string", name: "0LE4i" },
+      confidence: { type: "number", name: "CsRyg" },
+      createdAt: { type: "date-time", name: "5Jee0" }
+    }
+  });
 
-const eventsTable = glide.table({
-  token: process.env.GLIDE_TOKEN,
-  app: "4emgJAe0tdBbNwo2rEeq",
-  table: "native-table-kaGkp45eRnfVonDI7LYM",
-  columns: {
-    eventName: { type: "string", name: "6yjzn" },
-    eventUrl: { type: "uri", name: "fMJYV" },
-    country: { type: "string", name: "5MqfO" },
-    eventDate: { type: "date-time", name: "Xfwqb" },
-    scrappingStatus: { type: "string", name: "6G5uy" },
-    leadsFound: { type: "number", name: "4PJY9" },
-    lastScrapped: { type: "date-time", name: "oO6V2" },
-    responseBody: { type: "string", name: "I5pYh" },
-    responseStatus: { type: "string", name: "F1gfv" }
-  }
-});
+  const eventsTable = glide.table({
+    token: process.env.GLIDE_TOKEN,
+    app: "4emgJAe0tdBbNwo2rEeq",
+    table: "native-table-kaGkp45eRnfVonDI7LYM",
+    columns: {
+      eventName: { type: "string", name: "6yjzn" },
+      eventUrl: { type: "uri", name: "fMJYV" },
+      country: { type: "string", name: "5MqfO" },
+      eventDate: { type: "date-time", name: "Xfwqb" },
+      scrappingStatus: { type: "string", name: "6G5uy" },
+      leadsFound: { type: "number", name: "4PJY9" },
+      lastScrapped: { type: "date-time", name: "oO6V2" },
+      responseBody: { type: "string", name: "I5pYh" },
+      responseStatus: { type: "string", name: "F1gfv" }
+    }
+  });
 
 app.get("/", (req, res) => {
   res.json({ status: "online" });
@@ -245,8 +249,7 @@ return res.status(500).json({
 });
   }
 });
-/*app.post("/find-person-contact", async (req, res) => {
-    console.log("FIND PERSON CONTACT");
+console.log("FIND PERSON CONTACT");
   console.log("BODY:", req.body);
   try {
     const { companyName, eventName } = req.body || {};
@@ -276,7 +279,7 @@ return res.status(500).json({
       message: error.message
     });
   }
-});*/
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 async function findPersonContactWithAnthropic(companyName, eventName) {
