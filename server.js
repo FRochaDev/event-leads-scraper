@@ -21,6 +21,8 @@ const leadsTable = glide.table({
     websiteFound: { type: "boolean", name: "ltsRJ" },
     email: { type: "email-address", name: "Xz7P9" },
     emailFound: { type: "boolean", name: "GxyYQ" },
+            emailContact: { type: "email-address", name: "mzBFs" },
+
     contactFirstName: { type: "string", name: "gZOTI" },
 contactLastName: { type: "string", name: "bozIA" },
 contactRole: { type: "string", name: "YNPib" },
@@ -419,8 +421,8 @@ console.log(
       contactRole: contact.contact_role || "",
       contactSourceUrl: contact.source_url || "",
 
-      email: contact.contact_email || "",
-      emailFound: !!contact.contact_email,
+      emailContact: contact.contact_email || "",
+emailFound: !!contact.contact_email,
 
       confidence: contact.confidence || 0
     });
