@@ -245,7 +245,7 @@ return res.status(500).json({
 });
   }
 });
-app.post("/find-person-contact", async (req, res) => {
+/*app.post("/find-person-contact", async (req, res) => {
     console.log("FIND PERSON CONTACT");
   console.log("BODY:", req.body);
   try {
@@ -276,10 +276,10 @@ app.post("/find-person-contact", async (req, res) => {
       message: error.message
     });
   }
-});
+});*/
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-async function findPersonContactWithAnthropic(companyName, eventName) {
+/*async function findPersonContactWithAnthropic(companyName, eventName) {
   const prompt = `
 You are a B2B data extraction tool.
 
@@ -353,8 +353,99 @@ if (!jsonMatch) {
 }
 
 return JSON.parse(jsonMatch[1]);
+}*/
+app.post("/enrich-event-contacts", async (req, res) => {
+  console.log("HIT /enrich-event-contacts");
+  console.log("BODY:", req.body);
+
+  try {
+    const { eventId, eventName } = req.body || {};
+
+    if (!eventId || !eventName) {
+      return res.status(400).json({
+        error: true,
+        message: "eventId and eventName are required",
+        received: req.body
+      });
+    }
+
+    const allLeads = await leadsTable.get();
+
+    const eventLeads = allLeads.filter(lead =>
+      lead.eventId === eventId &&
+      lead.companyName &&
+      !lead.emailFound
+    );
+
+    console.log("LEADS TO ENRICH:", eventLeads.length);
+
+    const results = [];
+console.log(
+  "FIRST LEAD:",
+  JSON.stringify(eventLeads[0], null, 2)
+);
+  for (const lead of eventLeads) {
+  try {
+
+    const contact = await findPersonContactWithAnthropic(
+      lead.companyName,
+      eventName
+    );
+
+    await leadsTable.update(lead.$rowID, {
+      contactFirstName: contact.contact_first_name || "",
+      contactLastName: contact.contact_last_name || "",
+      contactRole: contact.contact_role || "",
+      contactSourceUrl: contact.source_url || "",
+
+      email: contact.contact_email || "",
+      emailFound: !!contact.contact_email,
+
+      confidence: contact.confidence || 0
+    });
+
+    results.push({
+      companyName: lead.companyName,
+      success: true,
+      email: contact.contact_email || "",
+      contactName:
+        `${contact.contact_first_name || ""} ${contact.contact_last_name || ""}`.trim()
+    });
+
+  } catch (error) {
+
+    console.error(
+      "ENRICH ERROR:",
+      lead.companyName,
+      error.message
+    );
+
+    results.push({
+      companyName: lead.companyName,
+      success: false,
+      error: error.message
+    });
+
+  }
 }
 
+    return res.status(200).json({
+      success: true,
+      eventId,
+      eventName,
+      leadsProcessed: eventLeads.length,
+      results
+    });
+
+  } catch (error) {
+    console.error("ENRICH EVENT CONTACTS ERROR:", error);
+
+    return res.status(500).json({
+      error: true,
+      message: error.message
+    });
+  }
+});
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
