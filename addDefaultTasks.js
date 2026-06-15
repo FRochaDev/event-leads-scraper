@@ -1,16 +1,16 @@
 import * as glide from "@glideapps/tables";
 
-const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
+const GLIDE_TOKEN1 = process.env.GLIDE_TOKEN1;
 const API_KEY = process.env.API_KEY;
 
 const APP_ID = "ShpVU84S76vvqmQLshs7";
 
-if (!GLIDE_TOKEN) {
+if (!GLIDE_TOKEN1) {
   throw new Error("Missing GLIDE_TOKEN environment variable");
 }
 
 const defaultWorkSheetItemTable = glide.table({
-  token: GLIDE_TOKEN,
+  token: GLIDE_TOKEN1,
   app: APP_ID,
   table: "native-table-4VYWpuJXQb31OnJrfw1i",
   columns: {
@@ -26,7 +26,7 @@ const defaultWorkSheetItemTable = glide.table({
 });
 
 const workSheetItemsTable = glide.table({
-  token: GLIDE_TOKEN,
+  token: GLIDE_TOKEN1,
   app: APP_ID,
   table: "native-table-FWJkwIeDHF69hhIgtfLS",
   columns: {
