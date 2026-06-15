@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import * as glide from "@glideapps/tables";
+import { addDefaultTasks } from "./addDefaultTasks.js";
 
 const app = express();
 
@@ -430,7 +431,7 @@ app.post("/scrape-event", async (req, res) => {
   }
 });
 
-import { addDefaultTasks } from "./addDefaultTasks.js";
+
 
 app.post("/add-default-tasks", addDefaultTasks);
 

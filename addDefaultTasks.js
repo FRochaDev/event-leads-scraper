@@ -1,13 +1,4 @@
-import express from "express";
-import cors from "cors";
 import * as glide from "@glideapps/tables";
-
-const app = express();
-
-app.use(cors());
-app.use(express.json({ limit: "5mb" }));
-
-const PORT = process.env.PORT || 3000;
 
 const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
 const API_KEY = process.env.API_KEY;
@@ -67,14 +58,7 @@ function subtractDays(dateString, days) {
   return date.toISOString();
 }
 
-app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "online",
-    service: "glide-default-tasks-api"
-  });
-});
-
-app.post("/add-default-tasks", async (req, res) => {
+export async function addDefaultTasks(req, res) {
   try {
     if (API_KEY && req.headers["x-api-key"] !== API_KEY) {
       return res.status(401).json({
@@ -167,8 +151,4 @@ app.post("/add-default-tasks", async (req, res) => {
       error: error.message || "Internal server error"
     });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+}
