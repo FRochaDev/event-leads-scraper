@@ -102,11 +102,26 @@ function normalizeExhibitor(item, eventId, startUrl) {
 }
 
 async function findPersonContactWithAnthropic(companyName, eventName) {
-  const prompt = `
+const prompt = `
 Company: ${companyName}
 Event: ${eventName}
 
-Find the best marketing, events, exhibition, partnerships, sales or business development contact for this company.
+Find the single best person to receive an email from a trade show stand construction company.
+
+Prioritize roles in this order:
+1. Events Manager / Event Marketing
+2. Trade Show Manager / Exhibition Manager
+3. Marketing Manager / Marketing Director
+4. Partnerships Manager
+5. Business Development Manager
+6. Sales Manager / Commercial Manager
+
+Avoid generic support, customer service, technical support, finance, HR, legal, CEO/founder, or investor relations contacts unless no better option exists.
+
+Return a personal business email only if reasonably supported or inferable from a reliable company email pattern.
+Do not return generic emails such as info@, sales@, support@, contact@, hello@, marketing@.
+
+If no suitable person is found, return empty contact fields.
 
 Return ONLY valid JSON:
 
@@ -414,6 +429,10 @@ app.post("/scrape-event", async (req, res) => {
     });
   }
 });
+
+import { addDefaultTasks } from "./addDefaultTasks.js";
+
+app.post("/add-default-tasks", addDefaultTasks);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
