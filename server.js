@@ -380,6 +380,12 @@ const contact = await findPersonContactWithAnthropic(
           confidence: contact.confidence || 0
         });
 
+        await eventsTable.update(eventId, {
+  enrichStatus: "Completed",
+  contactsFound: totalFound,
+  contactsNotFound: totalMissing
+});
+
       } catch (error) {
         console.log(
           "ENRICH ERROR:",
