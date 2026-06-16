@@ -102,30 +102,42 @@ function normalizeExhibitor(item, eventId, startUrl) {
   };
 }
 
-async function findPersonContactWithAnthropic(companyName, eventName) {
-const prompt = `
+async function findPersonContactWithAnthropic(companyName, website, eventName) {
+  const prompt = `
+You are a B2B lead research assistant.
+
 Company: ${companyName}
+Website: ${website || ""}
 Event: ${eventName}
 
-Find the single best person to receive an email from a trade show stand construction company.
+Task:
+Find the SINGLE BEST contact for exhibition stand design and trade show services.
 
-Prioritize roles in this order:
-1. Events Manager / Event Marketing
-2. Trade Show Manager / Exhibition Manager
-3. Marketing Manager / Marketing Director
-4. Partnerships Manager
-5. Business Development Manager
-6. Sales Manager / Commercial Manager
+Priority order:
+1. Event Manager
+2. Exhibition Manager
+3. Trade Show Manager
+4. Marketing Manager
+5. Brand Manager
+6. Partnerships Manager
+7. Business Development Manager
+8. Marketing Director
+9. CEO or Founder ONLY if nobody else is found
 
-Avoid generic support, customer service, technical support, finance, HR, legal, CEO/founder, or investor relations contacts unless no better option exists.
+Rules:
+- Prefer contacts directly involved in events, exhibitions, marketing or partnerships.
+- Prefer contacts from the exhibitor company itself.
+- Use the website to disambiguate companies with similar names.
+- Do not return generic company emails unless no individual contact can be found.
+- If an email cannot be verified, infer it from the company's public email format and lower confidence.
+- Ignore sales representatives, recruiters, engineers, support staff and HR contacts.
+- Return only ONE contact.
+- Return ONLY valid JSON.
+- No explanations.
+- No markdown.
+- No text before or after JSON.
 
-Return a personal business email only if reasonably supported or inferable from a reliable company email pattern.
-Do not return generic emails such as info@, sales@, support@, contact@, hello@, marketing@.
-
-If no suitable person is found, return empty contact fields.
-
-Return ONLY valid JSON:
-
+Required JSON schema:
 {
   "company":"",
   "contact_first_name":"",
@@ -319,7 +331,7 @@ app.post("/scrape-event", async (req, res) => {
         contactPage: "",
         sourceUrl: exhibitor.sourceUrl,
         country: exhibitor.country,
-        selected: false,
+        selected: true,
         contacted: false,
         notes: "",
         confidence: exhibitor.email ? 90 : 50,
@@ -341,10 +353,11 @@ app.post("/scrape-event", async (req, res) => {
       await sleep(1500);
 
       try {
-        const contact = await findPersonContactWithAnthropic(
-          lead.companyName,
-          eventName
-        );
+const contact = await findPersonContactWithAnthropic(
+  lead.companyName,
+  lead.website,
+  eventName
+);
 
         await leadsTable.update(lead.rowId, {
           contactFirstName: contact.contact_first_name || "",
