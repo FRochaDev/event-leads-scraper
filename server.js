@@ -42,7 +42,7 @@ const leadsTable = glide.table({
   }
 });
 
-const eventsTable = glide.table({
+/*const eventsTable = glide.table({
   token: process.env.GLIDE_TOKEN,
   app: "4emgJAe0tdBbNwo2rEeq",
   table: "native-table-kaGkp45eRnfVonDI7LYM",
@@ -57,7 +57,28 @@ const eventsTable = glide.table({
     responseBody: { type: "string", name: "I5pYh" },
     responseStatus: { type: "string", name: "F1gfv" }
   }
+});*/
+
+
+
+const eventsTable = glide.table({
+    token: process.env.GLIDE_TOKEN,
+    app: "4emgJAe0tdBbNwo2rEeq",
+    table: "native-table-t2HyWYJua4PKB9CHCRBZ",
+    columns: {
+        evento: { type: "string", name: "7A8nT" },
+        site: { type: "uri", name: "FCRaw" },
+
+        leadsScrappingStatus: { type: "string", name: "Xfaf7" },
+        leadsLeadsFound: { type: "number", name: "H5xem" },
+        leadsLastScrapped: { type: "date-time", name: "Cesvc" },
+        leadsResponseBody: { type: "string", name: "Z05gt" },
+        leadsResponseBodyStatus: { type: "string", name: "Ha9z9" }
+    }
 });
+
+
+
 
 app.get("/", (req, res) => {
   res.json({ status: "online" });
@@ -204,9 +225,6 @@ Required JSON schema:
 }
 
 app.post("/scrape-event", async (req, res) => {
-  console.log("HIT /scrape-event");
-  console.log("BODY:", req.body);
-
   const body = req.body || {};
 
   const eventId = body.eventId;
@@ -233,8 +251,8 @@ app.post("/scrape-event", async (req, res) => {
 
   try {
     await eventsTable.update(eventId, {
-      scrappingStatus: "Running",
-      lastScrapped: new Date()
+      leadsScrappingStatus: "Running",
+      leadsLastScrapped: new Date()
     });
 
     const actorResponse = await fetch(
@@ -259,10 +277,10 @@ app.post("/scrape-event", async (req, res) => {
 
     if (!actorResponse.ok || apifyData.error) {
       await eventsTable.update(eventId, {
-        scrappingStatus: "Failed",
-        lastScrapped: new Date(),
-        responseStatus: String(actorResponse.status),
-        responseBody: JSON.stringify(apifyData)
+        leadsScrappingStatus: "Failed",
+        leadsLastScrapped: new Date(),
+        leadsResponseBodyStatus: String(actorResponse.status),
+        leadsResponseBody: JSON.stringify(apifyData)
       });
 
       return res.status(500).json({
@@ -293,11 +311,11 @@ app.post("/scrape-event", async (req, res) => {
 
     if (normalized.length === 0) {
       await eventsTable.update(eventId, {
-        scrappingStatus: "Completed - no valid exhibitors",
-        leadsFound: 0,
-        lastScrapped: new Date(),
-        responseStatus: "200",
-        responseBody: "No valid exhibitors found"
+        leadsScrappingStatus: "Completed - no valid exhibitors",
+        leadsLeadsFound: 0,
+        leadsLastScrapped: new Date(),
+        leadsResponseBodyStatus: "200",
+        leadsResponseBody: "No valid exhibitors found"
       });
 
       return res.status(200).json({
@@ -380,11 +398,11 @@ const contact = await findPersonContactWithAnthropic(
           confidence: contact.confidence || 0
         });
 
-        await eventsTable.update(eventId, {
+        /*await eventsTable.update(eventId, {
   enrichStatus: "Completed",
   contactsFound: totalFound,
   contactsNotFound: totalMissing
-});
+});*/
 
       } catch (error) {
         console.log(
@@ -409,17 +427,17 @@ const contact = await findPersonContactWithAnthropic(
       }
     }
 
-    await eventsTable.update(eventId, {
-      scrappingStatus: "Completed",
-      leadsFound: createdLeads.length,
-      lastScrapped: new Date(),
-      responseStatus: "200",
-      responseBody: JSON.stringify({
-        exhibitorsFound: normalized.length,
-        leadsCreated: createdLeads.length,
-        contactsProcessed: enrichResults.length
-      })
-    });
+await eventsTable.update(eventId, {
+  leadsScrappingStatus: "Completed",
+  leadsLeadsFound: createdLeads.length,
+  leadsLastScrapped: new Date(),
+  leadsResponseBodyStatus: "200",
+  leadsResponseBody: JSON.stringify({
+    exhibitorsFound: normalized.length,
+    leadsCreated: createdLeads.length,
+    contactsProcessed: enrichResults.length
+  })
+});
 
     return res.status(200).json({
       success: true,
@@ -435,12 +453,12 @@ const contact = await findPersonContactWithAnthropic(
     console.error("SCRAPE EVENT ERROR:", error);
 
     try {
-      await eventsTable.update(eventId, {
-        scrappingStatus: "Failed",
-        lastScrapped: new Date(),
-        responseStatus: "500",
-        responseBody: error.message
-      });
+await eventsTable.update(eventId, {
+  leadsScrappingStatus: "Failed",
+  leadsLastScrapped: new Date(),
+  leadsResponseBodyStatus: "500",
+  leadsResponseBody: error.message
+});
     } catch {}
 
     return res.status(500).json({
