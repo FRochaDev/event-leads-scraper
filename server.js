@@ -225,6 +225,9 @@ Required JSON schema:
 }
 
 app.post("/scrape-event", async (req, res) => {
+
+  console.log("HIT /scrape-event");
+console.log("BODY:", req.body);
   const body = req.body || {};
 
   const eventId = body.eventId;
