@@ -243,46 +243,45 @@ async function scrapeExhibitorsWithFirecrawl(startUrl, eventId, resultLimit) {
       "Authorization": `Bearer ${FIRECRAWL_API_KEY}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      url: startUrl,
-      formats: [
-        "markdown",
-        {
-          type: "json",
-          schema: {
-            type: "object",
-            properties: {
-              exhibitors: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    companyName: { type: "string" },
-                    website: { type: "string" },
-                    email: { type: "string" },
-                    country: { type: "string" },
-                    sourceUrl: { type: "string" }
-                  },
-                  required: ["companyName"]
-                }
-              }
-            },
-            required: ["exhibitors"]
-          },
-          prompt:
-            "Extract the exhibitors, sponsors, partners or companies listed on this event page. Return only real company names. Ignore menu items, agenda items, speakers, generic text and page navigation."
-        }
-      ],
-      onlyMainContent: true,
-      waitFor: 3000,
-      timeout: 60000
-    })
+body: JSON.stringify({
+  url: startUrl,
+  formats: [
+    {
+      type: "json",
+      schema: {
+        type: "object",
+        properties: {
+          exhibitors: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                companyName: { type: "string" },
+                website: { type: "string" },
+                email: { type: "string" },
+                country: { type: "string" },
+                sourceUrl: { type: "string" }
+              },
+              required: ["companyName"]
+            }
+          }
+        },
+        required: ["exhibitors"]
+      },
+      prompt:
+        "Extract the exhibitors, sponsors, partners or companies listed on this event page. Return only real company names. Ignore menu items, agenda items, speakers, generic text and page navigation."
+    }
+  ],
+  onlyMainContent: false,
+  waitFor: 10000,
+  timeout: 120000
+})
   });
 
   const firecrawlData = await firecrawlResponse.json();
 
-  console.log("FIRECRAWL STATUS:", firecrawlResponse.status);
-  console.log("FIRECRAWL DATA:", JSON.stringify(firecrawlData).slice(0, 2000));
+console.log("FIRECRAWL STATUS:", firecrawlResponse.status);
+console.log("FIRECRAWL DATA:", JSON.stringify(firecrawlData).slice(0, 2000));
 
   if (!firecrawlResponse.ok || firecrawlData.error) {
     throw new Error(JSON.stringify(firecrawlData));
