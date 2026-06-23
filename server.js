@@ -237,66 +237,36 @@ async function scrapeExhibitorsWithFirecrawl(startUrl, eventId, resultLimit) {
     throw new Error("Missing FIRECRAWL_API_KEY environment variable");
   }
 
-  const firecrawlResponse = await fetch("https://api.firecrawl.dev/v2/scrape", {
+  const crawlResponse = await fetch("https://api.firecrawl.dev/v2/crawl", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${FIRECRAWL_API_KEY}`,
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
       "Content-Type": "application/json"
     },
-body: JSON.stringify({
-  url: startUrl,
-  formats: [
-    {
-      type: "json",
-      schema: {
-        type: "object",
-        properties: {
-          exhibitors: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                companyName: { type: "string" },
-                website: { type: "string" },
-                email: { type: "string" },
-                country: { type: "string" },
-                sourceUrl: { type: "string" }
-              },
-              required: ["companyName"]
-            }
-          }
-        },
-        required: ["exhibitors"]
-      },
-      prompt:
-        "Extract the exhibitors, sponsors, partners or companies listed on this event page. Return only real company names. Ignore menu items, agenda items, speakers, generic text and page navigation."
-    }
-  ],
-  onlyMainContent: false,
-  waitFor: 10000,
-  timeout: 120000
-})
+    body: JSON.stringify({
+      url: startUrl,
+      limit: 5,
+      maxDepth: 1,
+      allowExternalLinks: false,
+      scrapeOptions: {
+        formats: ["markdown", "links"],
+        onlyMainContent: false,
+        timeout: 300000,
+        waitFor: 10000
+      }
+    })
   });
 
-  const firecrawlData = await firecrawlResponse.json();
+  const crawlData = await crawlResponse.json();
 
-console.log("FIRECRAWL STATUS:", firecrawlResponse.status);
-console.log("FIRECRAWL DATA:", JSON.stringify(firecrawlData).slice(0, 2000));
+  console.log("FIRECRAWL CRAWL STATUS:", crawlResponse.status);
+  console.log("FIRECRAWL CRAWL DATA:", JSON.stringify(crawlData).slice(0, 2000));
 
-  if (!firecrawlResponse.ok || firecrawlData.error) {
-    throw new Error(JSON.stringify(firecrawlData));
+  if (!crawlResponse.ok || crawlData.error) {
+    throw new Error(JSON.stringify(crawlData));
   }
 
-  const extracted =
-    firecrawlData?.data?.json?.exhibitors ||
-    firecrawlData?.json?.exhibitors ||
-    firecrawlData?.data?.extract?.exhibitors ||
-    [];
-
-  return extracted
-    .slice(0, resultLimit)
-    .map(item => normalizeFirecrawlExhibitor(item, eventId, startUrl))
-    .filter(item => item.companyName);
+  return [];
 }
 
 app.post("/scrape-event", async (req, res) => {
