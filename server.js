@@ -178,6 +178,106 @@ ${markdown.slice(0, 120000)}
     ? parsed.exhibitors.slice(0, resultLimit)
     : [];
 }
+async function findPersonContactWithAnthropic(companyName, website, eventName) {
+  const prompt = `
+You are a B2B lead research assistant.
+
+Company: ${companyName}
+Website: ${website || ""}
+Event: ${eventName}
+
+Task:
+Find the SINGLE BEST contact for exhibition stand design and trade show services.
+
+Priority order:
+1. Event Manager
+2. Exhibition Manager
+3. Trade Show Manager
+4. Marketing Manager
+5. Brand Manager
+6. Partnerships Manager
+7. Business Development Manager
+8. Marketing Director
+9. CEO or Founder ONLY if nobody else is found
+
+Rules:
+- Prefer contacts directly involved in events, exhibitions, marketing or partnerships.
+- Prefer contacts from the exhibitor company itself.
+- Use the website to disambiguate companies with similar names.
+- Do not return generic company emails unless no individual contact can be found.
+- If an email cannot be verified, infer it from the company's public email format and lower confidence.
+- Ignore sales representatives, recruiters, engineers, support staff and HR contacts.
+- Return only ONE contact.
+- Return ONLY valid JSON.
+- No explanations.
+- No markdown.
+- No text before or after JSON.
+
+Required JSON schema:
+{
+  "company":"",
+  "contact_first_name":"",
+  "contact_last_name":"",
+  "contact_email":"",
+  "contact_role":"",
+  "source_url":"",
+  "confidence":0,
+  "canceled":"No"
+}
+`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 500,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 1
+        }
+      ],
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  const text = data.content
+    ?.filter(block => block.type === "text")
+    ?.map(block => block.text)
+    ?.join("")
+    ?.trim();
+
+  const jsonBlockMatch = text?.match(/```json\s*([\s\S]*?)\s*```/);
+
+  if (jsonBlockMatch) {
+    return JSON.parse(jsonBlockMatch[1]);
+  }
+
+  const jsonObjectMatch = text?.match(/\{[\s\S]*\}/);
+
+  if (jsonObjectMatch) {
+    return JSON.parse(jsonObjectMatch[0]);
+  }
+
+  throw new Error("No JSON found in Claude contact response");
+}
 
 function normalizeFirecrawlExhibitor(item, eventId, startUrl) {
   return {
