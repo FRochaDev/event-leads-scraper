@@ -11,6 +11,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
 const leadsTable = glide.table({
   token: process.env.GLIDE_TOKEN,
@@ -42,25 +43,6 @@ const leadsTable = glide.table({
   }
 });
 
-/*const eventsTable = glide.table({
-  token: process.env.GLIDE_TOKEN,
-  app: "4emgJAe0tdBbNwo2rEeq",
-  table: "native-table-kaGkp45eRnfVonDI7LYM",
-  columns: {
-    eventName: { type: "string", name: "6yjzn" },
-    eventUrl: { type: "uri", name: "fMJYV" },
-    country: { type: "string", name: "5MqfO" },
-    eventDate: { type: "date-time", name: "Xfwqb" },
-    scrappingStatus: { type: "string", name: "6G5uy" },
-    leadsFound: { type: "number", name: "4PJY9" },
-    lastScrapped: { type: "date-time", name: "oO6V2" },
-    responseBody: { type: "string", name: "I5pYh" },
-    responseStatus: { type: "string", name: "F1gfv" }
-  }
-});*/
-
-
-
 const eventsTable = glide.table({
     token: process.env.GLIDE_TOKEN,
     app: "4emgJAe0tdBbNwo2rEeq",
@@ -76,9 +58,6 @@ const eventsTable = glide.table({
         leadsResponseBodyStatus: { type: "string", name: "Ha9z9" }
     }
 });
-
-
-
 
 app.get("/", (req, res) => {
   res.json({ status: "online" });
@@ -224,6 +203,103 @@ Required JSON schema:
   throw new Error("No JSON found in Claude response");
 }
 
+function normalizeFirecrawlExhibitor(item, eventId, startUrl) {
+  return {
+    eventId,
+    companyName:
+      item.companyName ||
+      item.company_name ||
+      item.name ||
+      item.exhibitorName ||
+      item.sponsorName ||
+      "",
+    website:
+      item.website ||
+      item.url ||
+      item.companyWebsite ||
+      "",
+    email:
+      item.email ||
+      item.contactEmail ||
+      "",
+    sourceUrl:
+      item.sourceUrl ||
+      item.profileUrl ||
+      startUrl,
+    country:
+      item.country ||
+      ""
+  };
+}
+
+async function scrapeExhibitorsWithFirecrawl(startUrl, eventId, resultLimit) {
+  if (!FIRECRAWL_API_KEY) {
+    throw new Error("Missing FIRECRAWL_API_KEY environment variable");
+  }
+
+  const firecrawlResponse = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${FIRECRAWL_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      url: startUrl,
+      formats: [
+        "markdown",
+        {
+          type: "json",
+          schema: {
+            type: "object",
+            properties: {
+              exhibitors: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    companyName: { type: "string" },
+                    website: { type: "string" },
+                    email: { type: "string" },
+                    country: { type: "string" },
+                    sourceUrl: { type: "string" }
+                  },
+                  required: ["companyName"]
+                }
+              }
+            },
+            required: ["exhibitors"]
+          },
+          prompt:
+            "Extract the exhibitors, sponsors, partners or companies listed on this event page. Return only real company names. Ignore menu items, agenda items, speakers, generic text and page navigation."
+        }
+      ],
+      onlyMainContent: true,
+      waitFor: 3000,
+      timeout: 60000
+    })
+  });
+
+  const firecrawlData = await firecrawlResponse.json();
+
+  console.log("FIRECRAWL STATUS:", firecrawlResponse.status);
+  console.log("FIRECRAWL DATA:", JSON.stringify(firecrawlData).slice(0, 2000));
+
+  if (!firecrawlResponse.ok || firecrawlData.error) {
+    throw new Error(JSON.stringify(firecrawlData));
+  }
+
+  const extracted =
+    firecrawlData?.data?.json?.exhibitors ||
+    firecrawlData?.json?.exhibitors ||
+    firecrawlData?.data?.extract?.exhibitors ||
+    [];
+
+  return extracted
+    .slice(0, resultLimit)
+    .map(item => normalizeFirecrawlExhibitor(item, eventId, startUrl))
+    .filter(item => item.companyName);
+}
+
 app.post("/scrape-event", async (req, res) => {
 
   console.log("HIT /scrape-event");
@@ -312,28 +388,69 @@ console.log("BODY:", req.body);
         !item.companyName.toLowerCase().includes("please note")
       );
 
-    if (normalized.length === 0) {
-      await eventsTable.update(eventId, {
-        leadsScrappingStatus: "Completed - no valid exhibitors",
-        leadsLeadsFound: 0,
-        leadsLastScrapped: new Date(),
-        leadsResponseBodyStatus: "200",
-        leadsResponseBody: "No valid exhibitors found"
-      });
+let finalNormalized = normalized;
+let scrapeSource = "apify";
 
-      return res.status(200).json({
-        success: false,
-        eventId,
-        exhibitorsFound: 0,
-        leadsCreated: 0,
-        contactsProcessed: 0,
-        message: "No valid exhibitors found."
-      });
-    }
+if (finalNormalized.length === 0) {
+  console.log("APIFY RETURNED 0 VALID EXHIBITORS — TRYING FIRECRAWL");
+
+  try {
+    finalNormalized = await scrapeExhibitorsWithFirecrawl(
+      startUrl,
+      eventId,
+      resultLimit
+    );
+
+    scrapeSource = "firecrawl";
+  } catch (firecrawlError) {
+    console.log("FIRECRAWL ERROR:", firecrawlError.message);
+
+    await eventsTable.update(eventId, {
+      leadsScrappingStatus: "Completed - no valid exhibitors",
+      leadsLeadsFound: 0,
+      leadsLastScrapped: new Date(),
+      leadsResponseBodyStatus: "200",
+      leadsResponseBody: JSON.stringify({
+        apify: "No valid exhibitors found",
+        firecrawlError: firecrawlError.message
+      })
+    });
+
+    return res.status(200).json({
+      success: false,
+      eventId,
+      exhibitorsFound: 0,
+      leadsCreated: 0,
+      contactsProcessed: 0,
+      source: "apify+firecrawl",
+      message: "No valid exhibitors found."
+    });
+  }
+}
+
+if (finalNormalized.length === 0) {
+  await eventsTable.update(eventId, {
+    leadsScrappingStatus: "Completed - no valid exhibitors",
+    leadsLeadsFound: 0,
+    leadsLastScrapped: new Date(),
+    leadsResponseBodyStatus: "200",
+    leadsResponseBody: "No valid exhibitors found"
+  });
+
+  return res.status(200).json({
+    success: false,
+    eventId,
+    exhibitorsFound: 0,
+    leadsCreated: 0,
+    contactsProcessed: 0,
+    source: scrapeSource,
+    message: "No valid exhibitors found."
+  });
+}
 
     const createdLeads = [];
 
-    for (const exhibitor of normalized) {
+    for (const exhibitor of finalNormalized) {
       const rowId = await leadsTable.add({
         eventId: exhibitor.eventId,
         companyName: exhibitor.companyName,
@@ -436,7 +553,8 @@ await eventsTable.update(eventId, {
   leadsLastScrapped: new Date(),
   leadsResponseBodyStatus: "200",
   leadsResponseBody: JSON.stringify({
-    exhibitorsFound: normalized.length,
+    exhibitorsFound: finalNormalized.length,
+source: scrapeSource,
     leadsCreated: createdLeads.length,
     contactsProcessed: enrichResults.length
   })
@@ -446,7 +564,8 @@ await eventsTable.update(eventId, {
       success: true,
       eventId,
       eventName,
-      exhibitorsFound: normalized.length,
+      exhibitorsFound: finalNormalized.length,
+source: scrapeSource,
       leadsCreated: createdLeads.length,
       contactsProcessed: enrichResults.length,
       enrichResults
@@ -470,8 +589,6 @@ await eventsTable.update(eventId, {
     });
   }
 });
-
-
 
 app.post("/add-default-tasks", addDefaultTasks);
 
