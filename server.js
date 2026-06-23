@@ -265,7 +265,42 @@ body: JSON.stringify({
     throw new Error(JSON.stringify(crawlData));
   }
 
-  return [];
+  const statusUrl = crawlData.url;
+
+for (let attempt = 1; attempt <= 20; attempt++) {
+  await sleep(3000);
+
+  const statusResponse = await fetch(statusUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`
+    }
+  });
+
+  const statusData = await statusResponse.json();
+
+  console.log("FIRECRAWL POLL STATUS:", statusResponse.status);
+  console.log("FIRECRAWL POLL DATA:", JSON.stringify(statusData).slice(0, 2000));
+
+  if (!statusResponse.ok || statusData.error) {
+    throw new Error(JSON.stringify(statusData));
+  }
+
+  if (statusData.status === "completed") {
+    const pages = statusData.data || [];
+
+    const allText = pages
+      .map(page => page.markdown || "")
+      .join("\n\n");
+
+    console.log("FIRECRAWL COMPLETED PAGES:", pages.length);
+    console.log("FIRECRAWL MARKDOWN LENGTH:", allText.length);
+
+    return [];
+  }
+}
+
+throw new Error("Firecrawl crawl polling timed out");
 }
 
 app.post("/scrape-event", async (req, res) => {
