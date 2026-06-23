@@ -102,52 +102,37 @@ function normalizeExhibitor(item, eventId, startUrl) {
   };
 }
 
-async function findPersonContactWithAnthropic(companyName, website, eventName) {
+async function extractExhibitorsWithAnthropic(markdown, eventName, startUrl, resultLimit) {
   const prompt = `
-You are a B2B lead research assistant.
+You are extracting exhibitor leads from an event website.
 
-Company: ${companyName}
-Website: ${website || ""}
 Event: ${eventName}
+Source URL: ${startUrl}
 
-Task:
-Find the SINGLE BEST contact for exhibition stand design and trade show services.
-
-Priority order:
-1. Event Manager
-2. Exhibition Manager
-3. Trade Show Manager
-4. Marketing Manager
-5. Brand Manager
-6. Partnerships Manager
-7. Business Development Manager
-8. Marketing Director
-9. CEO or Founder ONLY if nobody else is found
+Extract exhibitors, sponsors, partners, startups, or companies listed as participating in the event.
 
 Rules:
-- Prefer contacts directly involved in events, exhibitions, marketing or partnerships.
-- Prefer contacts from the exhibitor company itself.
-- Use the website to disambiguate companies with similar names.
-- Do not return generic company emails unless no individual contact can be found.
-- If an email cannot be verified, infer it from the company's public email format and lower confidence.
-- Ignore sales representatives, recruiters, engineers, support staff and HR contacts.
-- Return only ONE contact.
+- Return only real company names.
+- Ignore menu items, speakers, agenda sessions, ticket links, navigation, venue info, generic CTAs, and Terrapinn itself unless Terrapinn is listed as an exhibitor.
+- Prefer companies in sections like Sponsors, Exhibitors, Partners, Aussteller, Sponsoren, Start-Up Zone.
+- Include website if visible.
+- Return maximum ${resultLimit} companies.
 - Return ONLY valid JSON.
-- No explanations.
-- No markdown.
-- No text before or after JSON.
 
-Required JSON schema:
+Schema:
 {
-  "company":"",
-  "contact_first_name":"",
-  "contact_last_name":"",
-  "contact_email":"",
-  "contact_role":"",
-  "source_url":"",
-  "confidence":0,
-  "canceled":"No"
+  "exhibitors": [
+    {
+      "companyName": "",
+      "website": "",
+      "country": "",
+      "sourceUrl": ""
+    }
+  ]
 }
+
+Markdown:
+${markdown.slice(0, 120000)}
 `;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -159,14 +144,7 @@ Required JSON schema:
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 500,
-      tools: [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 1
-        }
-      ],
+      max_tokens: 4000,
       messages: [
         {
           role: "user",
@@ -188,19 +166,17 @@ Required JSON schema:
     ?.join("")
     ?.trim();
 
-  const jsonBlockMatch = text?.match(/```json\s*([\s\S]*?)\s*```/);
-
-  if (jsonBlockMatch) {
-    return JSON.parse(jsonBlockMatch[1]);
-  }
-
   const jsonObjectMatch = text?.match(/\{[\s\S]*\}/);
 
-  if (jsonObjectMatch) {
-    return JSON.parse(jsonObjectMatch[0]);
+  if (!jsonObjectMatch) {
+    throw new Error("No JSON found in Claude exhibitor extraction response");
   }
 
-  throw new Error("No JSON found in Claude response");
+  const parsed = JSON.parse(jsonObjectMatch[0]);
+
+  return Array.isArray(parsed.exhibitors)
+    ? parsed.exhibitors.slice(0, resultLimit)
+    : [];
 }
 
 function normalizeFirecrawlExhibitor(item, eventId, startUrl) {
@@ -232,7 +208,9 @@ function normalizeFirecrawlExhibitor(item, eventId, startUrl) {
   };
 }
 
-async function scrapeExhibitorsWithFirecrawl(startUrl, eventId, resultLimit) {
+
+
+async function scrapeExhibitorsWithFirecrawl(startUrl, eventId, resultLimit, eventName) {
   if (!FIRECRAWL_API_KEY) {
     throw new Error("Missing FIRECRAWL_API_KEY environment variable");
   }
@@ -299,7 +277,16 @@ for (let attempt = 1; attempt <= 20; attempt++) {
   "FIRECRAWL SAMPLE:",
   allText.substring(0, 5000)
 );
-    return [];
+   const extractedExhibitors = await extractExhibitorsWithAnthropic(
+  allText,
+  eventName,
+  startUrl,
+  resultLimit
+);
+
+return extractedExhibitors
+  .map(item => normalizeFirecrawlExhibitor(item, eventId, startUrl))
+  .filter(item => item.companyName);
   }
 }
 
@@ -401,11 +388,12 @@ if (finalNormalized.length === 0) {
   console.log("APIFY RETURNED 0 VALID EXHIBITORS — TRYING FIRECRAWL");
 
   try {
-    finalNormalized = await scrapeExhibitorsWithFirecrawl(
-      startUrl,
-      eventId,
-      resultLimit
-    );
+finalNormalized = await scrapeExhibitorsWithFirecrawl(
+  startUrl,
+  eventId,
+  resultLimit,
+  eventName
+);
 
     scrapeSource = "firecrawl";
   } catch (firecrawlError) {
