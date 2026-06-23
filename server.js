@@ -243,18 +243,17 @@ async function scrapeExhibitorsWithFirecrawl(startUrl, eventId, resultLimit) {
       Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      url: startUrl,
-      limit: 5,
-      maxDepth: 1,
-      allowExternalLinks: false,
-      scrapeOptions: {
-        formats: ["markdown", "links"],
-        onlyMainContent: false,
-        timeout: 300000,
-        waitFor: 10000
-      }
-    })
+body: JSON.stringify({
+  url: startUrl,
+  limit: 5,
+  allowExternalLinks: false,
+  scrapeOptions: {
+    formats: ["markdown", "links"],
+    onlyMainContent: false,
+    timeout: 300000,
+    waitFor: 10000
+  }
+})
   });
 
   const crawlData = await crawlResponse.json();
@@ -486,12 +485,6 @@ const contact = await findPersonContactWithAnthropic(
           role: contact.contact_role || "",
           confidence: contact.confidence || 0
         });
-
-        /*await eventsTable.update(eventId, {
-  enrichStatus: "Completed",
-  contactsFound: totalFound,
-  contactsNotFound: totalMissing
-});*/
 
       } catch (error) {
         console.log(
