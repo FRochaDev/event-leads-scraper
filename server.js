@@ -295,7 +295,10 @@ for (let attempt = 1; attempt <= 20; attempt++) {
 
     console.log("FIRECRAWL COMPLETED PAGES:", pages.length);
     console.log("FIRECRAWL MARKDOWN LENGTH:", allText.length);
-
+    console.log(
+  "FIRECRAWL SAMPLE:",
+  allText.substring(0, 5000)
+);
     return [];
   }
 }
