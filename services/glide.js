@@ -96,3 +96,14 @@ export async function createLeadRows(exhibitors) {
 
   return createdLeads;
 }
+
+export async function updateLeadContact(rowId, contact) {
+  return leadsTable.update(rowId, {
+    contactFirstName: contact.contactFirstName || "",
+    contactLastName: contact.contactLastName || "",
+    contactRole: contact.contactRole || "",
+    contactSourceUrl: contact.sourceUrl || "",
+    emailContact: contact.contactEmail || "",
+    confidence: contact.confidence || 0
+  });
+}

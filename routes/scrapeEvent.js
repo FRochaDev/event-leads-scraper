@@ -1,8 +1,10 @@
 import { extractExhibitorsFromEvent } from "../services/firecrawl.js";
 import {
   updateEventStatus,
-  createLeadRows
+  createLeadRows,
+  updateLeadContact
 } from "../services/glide.js";
+import { enrichLeadContacts } from "../services/contactEnrichment.js";
 
 export async function scrapeEvent(req, res) {
   console.log("HIT /scrape-event");
@@ -15,6 +17,8 @@ export async function scrapeEvent(req, res) {
   const startUrl = body.start_url;
 
   const resultLimit = Math.min(Number(body.result_limit) || 20, 100);
+
+  const enrichLimit = Math.min(Number(body.enrich_limit) || 0, 50);
 
   if (!eventId || !eventName || !startUrl) {
     return res.status(400).json({
@@ -54,12 +58,28 @@ const exhibitors = await extractExhibitorsFromEvent({
         exhibitorsFound: 0,
         leadsCreated: 0,
         contactsProcessed: 0,
-        source: "firecrawl+extractor",
+        source: "firecrawl",
         message: "No valid exhibitors found."
       });
     }
 
     const createdLeads = await createLeadRows(exhibitors);
+
+    let enrichResults = [];
+
+    if (enrichLimit > 0) {
+      enrichResults = await enrichLeadContacts({
+        leads: createdLeads,
+        eventName,
+        enrichLimit
+      });
+
+      for (const result of enrichResults) {
+        if (result.success && result.contact && !result.contact.canceled) {
+          await updateLeadContact(result.rowId, result.contact);
+        }
+      }
+    }
 
     await updateEventStatus(eventId, {
       leadsScrappingStatus: "Completed",
@@ -68,9 +88,9 @@ const exhibitors = await extractExhibitorsFromEvent({
       leadsResponseBodyStatus: "200",
       leadsResponseBody: JSON.stringify({
         exhibitorsFound: exhibitors.length,
-        source: "firecrawl+extractor",
+        source: "firecrawl",
         leadsCreated: createdLeads.length,
-        contactsProcessed: 0
+        contactsProcessed: enrichResults.length
       })
     });
 
@@ -79,10 +99,10 @@ const exhibitors = await extractExhibitorsFromEvent({
       eventId,
       eventName,
       exhibitorsFound: exhibitors.length,
-      source: "firecrawl+extractor",
+      source: "firecrawl",
       leadsCreated: createdLeads.length,
-      contactsProcessed: 0,
-      enrichResults: []
+      contactsProcessed: enrichResults.length,
+      enrichResults
     });
 
   } catch (error) {
