@@ -30,7 +30,6 @@ export async function scrapeEvent(req, res) {
       leadsLastScrapped: new Date()
     });
 
-    const { markdown } = await crawlEventWebsite({ startUrl });
 
 const exhibitors = await extractExhibitorsFromEvent({
   eventId,
