@@ -117,15 +117,22 @@ function contactSchema() {
 }
 
 function extractContactsFromSearch(searchData) {
-  const results = searchData.data || searchData.results || [];
+  const results =
+    searchData.data?.web ||
+    searchData.data?.results ||
+    searchData.results ||
+    [];
 
   return results
-    .map(result =>
-      result.json ||
-      result.data?.json ||
-      result.scrape?.json ||
-      result.content?.json
-    )
+    .map(result => {
+      return (
+        result.json ||
+        result.data?.json ||
+        result.scrape?.json ||
+        result.content?.json ||
+        null
+      );
+    })
     .filter(Boolean);
 }
 
