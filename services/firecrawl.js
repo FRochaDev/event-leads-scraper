@@ -1,13 +1,18 @@
-import { sleep } from "../utils/sleep.js";
+import { normalizeFirecrawlExhibitor } from "../utils/normalize.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
-export async function crawlEventWebsite({ startUrl }) {
+export async function extractExhibitorsFromEvent({
+  eventId,
+  eventName,
+  startUrl,
+  resultLimit
+}) {
   if (!FIRECRAWL_API_KEY) {
     throw new Error("Missing FIRECRAWL_API_KEY environment variable");
   }
 
-  const crawlResponse = await fetch("https://api.firecrawl.dev/v2/crawl", {
+  const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
@@ -15,64 +20,80 @@ export async function crawlEventWebsite({ startUrl }) {
     },
     body: JSON.stringify({
       url: startUrl,
-      limit: 5,
-      allowExternalLinks: false,
-      scrapeOptions: {
-        formats: ["markdown", "links"],
-        onlyMainContent: false,
-        timeout: 300000,
-        waitFor: 10000
-      }
+      onlyMainContent: false,
+      waitFor: 10000,
+      timeout: 300000,
+      formats: [
+        {
+          type: "json",
+          prompt: buildExhibitorPrompt({ eventName, startUrl, resultLimit }),
+          schema: {
+            type: "object",
+            properties: {
+              exhibitors: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    companyName: { type: "string" },
+                    website: { type: "string" },
+                    email: { type: "string" },
+                    country: { type: "string" },
+                    sourceUrl: { type: "string" }
+                  },
+                  required: ["companyName"]
+                }
+              }
+            },
+            required: ["exhibitors"]
+          }
+        }
+      ]
     })
   });
 
-  const crawlData = await crawlResponse.json();
+  const data = await response.json();
 
-  console.log("FIRECRAWL CRAWL STATUS:", crawlResponse.status);
-  console.log("FIRECRAWL CRAWL DATA:", JSON.stringify(crawlData).slice(0, 2000));
+  console.log("FIRECRAWL SCRAPE STATUS:", response.status);
+  console.log("FIRECRAWL SCRAPE DATA:", JSON.stringify(data).slice(0, 2000));
 
-  if (!crawlResponse.ok || crawlData.error) {
-    throw new Error(JSON.stringify(crawlData));
+  if (!response.ok || data.error) {
+    throw new Error(JSON.stringify(data));
   }
 
-  const statusUrl = crawlData.url;
+  const rawExhibitors =
+    data.data?.json?.exhibitors ||
+    data.json?.exhibitors ||
+    data.exhibitors ||
+    [];
 
-  for (let attempt = 1; attempt <= 20; attempt++) {
-    await sleep(3000);
-
-    const statusResponse = await fetch(statusUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`
-      }
-    });
-
-    const statusData = await statusResponse.json();
-
-    console.log("FIRECRAWL POLL STATUS:", statusResponse.status);
-    console.log("FIRECRAWL POLL DATA:", JSON.stringify(statusData).slice(0, 2000));
-
-    if (!statusResponse.ok || statusData.error) {
-      throw new Error(JSON.stringify(statusData));
-    }
-
-    if (statusData.status === "completed") {
-      const pages = statusData.data || [];
-
-      const markdown = pages
-        .map(page => page.markdown || "")
-        .join("\n\n");
-
-      console.log("FIRECRAWL COMPLETED PAGES:", pages.length);
-      console.log("FIRECRAWL MARKDOWN LENGTH:", markdown.length);
-      console.log("FIRECRAWL SAMPLE:", markdown.substring(0, 5000));
-
-      return {
-        pages,
-        markdown
-      };
-    }
+  if (!Array.isArray(rawExhibitors)) {
+    return [];
   }
 
-  throw new Error("Firecrawl crawl polling timed out");
+  return rawExhibitors
+    .slice(0, resultLimit)
+    .map(item => normalizeFirecrawlExhibitor(item, eventId, startUrl))
+    .filter(item => item.companyName);
+}
+
+function buildExhibitorPrompt({ eventName, startUrl, resultLimit }) {
+  return `
+Extract exhibitors, sponsors, partners, startups, brands, or participating companies from this event website.
+
+Event: ${eventName}
+Source URL: ${startUrl}
+
+Rules:
+- Return only real company names.
+- Ignore menu items, speakers, agenda sessions, ticket links, venue information, generic calls to action, and navigation text.
+- Prefer companies listed under sections like Sponsors, Exhibitors, Partners, Aussteller, Sponsoren, Start-Up Zone, Marketplace, or Brand list.
+- Include website if visible.
+- Include email if visible.
+- Include country if visible.
+- Include sourceUrl if a company profile URL is visible.
+- Return maximum ${resultLimit} companies.
+- Do not invent companies.
+- Do not include the event organizer unless it is explicitly listed as an exhibitor, sponsor, or partner.
+`;
 }

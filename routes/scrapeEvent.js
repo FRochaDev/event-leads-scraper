@@ -1,5 +1,4 @@
-import { crawlEventWebsite } from "../services/firecrawl.js";
-import { extractExhibitorsFromMarkdown } from "../services/extractor.js";
+import { extractExhibitorsFromEvent } from "../services/firecrawl.js";
 import {
   updateEventStatus,
   createLeadRows
@@ -33,13 +32,12 @@ export async function scrapeEvent(req, res) {
 
     const { markdown } = await crawlEventWebsite({ startUrl });
 
-    const exhibitors = await extractExhibitorsFromMarkdown({
-      markdown,
-      eventId,
-      eventName,
-      startUrl,
-      resultLimit
-    });
+const exhibitors = await extractExhibitorsFromEvent({
+  eventId,
+  eventName,
+  startUrl,
+  resultLimit
+});
 
     if (!exhibitors.length) {
       await updateEventStatus(eventId, {
