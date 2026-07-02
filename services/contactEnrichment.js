@@ -61,6 +61,11 @@ async function findBestContact({ companyName, website, eventName }) {
     eventName
   });
 
+  if (normalized.contactEmail && isGenericEmail(normalized.contactEmail)) {
+  normalized.contactEmail = "";
+  normalized.confidence = Math.min(normalized.confidence, 40);
+}
+
   return normalizeAndValidateContact(contact, homeUrl, bestUrl);
 }
 
@@ -313,4 +318,23 @@ function emptyContact() {
     confidence: 0,
     canceled: true
   };
+}
+
+function isGenericEmail(email) {
+  const localPart = email.split("@")[0]?.toLowerCase();
+
+  return [
+    "info",
+    "contact",
+    "sales",
+    "marketing",
+    "support",
+    "press",
+    "media",
+    "hello",
+    "enquiries",
+    "enquiry",
+    "admin",
+    "office"
+  ].includes(localPart);
 }

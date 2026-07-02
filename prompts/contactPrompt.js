@@ -45,13 +45,12 @@ Preferred roles (highest priority first):
 
 Email rules:
 
-- Prefer a visible individual email from the company domain.
-- If no individual email is visible, return the best generic company email related to marketing, events, partnerships, sales, or general contact.
-- Valid generic examples: marketing@, events@, partnerships@, sales@, info@, contact@
-- The email domain MUST match the company's own website.
+- Return only a visible individual business email belonging to the person.
+- The email must belong to the company domain.
+- Do not return generic emails such as info@, contact@, sales@, marketing@, support@, press@, media@, hello@, enquiries@.
 - Never invent an email.
 - Never infer an email pattern.
-- Reject emails belonging to another company.
+- If no individual email is visible, leave contactEmail blank.
 
 Example:
 
