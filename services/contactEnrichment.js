@@ -160,7 +160,13 @@ function scoreUrl(url) {
     path.includes("/press") ||
     path.includes("/media") ||
     path.includes("/resources") ||
-    path.includes("/case-studies")
+    path.includes("/case-studies") ||
+    path.includes("/products") ||
+    path.includes("/product") ||
+    path.includes("/sustainability") ||
+    path.includes("/values") ||
+    path.includes("/careers") ||
+    path.includes("/jobs")
   ) {
     return 0;
   }
@@ -174,11 +180,11 @@ function scoreUrl(url) {
     { token: "management-team", score: 100 },
     { token: "our-team", score: 75 },
     { token: "team", score: 70 },
-    { token: "people", score: 65 },
+    { token: "people", score: 40 },
     { token: "about-us", score: 45 },
     { token: "about", score: 40 },
-    { token: "contact-us", score: 35 },
-    { token: "contact", score: 30 }
+    { token: "contact-us", score: 85 },
+    { token: "contact", score: 80 }
   ];
 
   const pathParts = path
