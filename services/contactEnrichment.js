@@ -289,8 +289,16 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
   }
 
   if (
-    contactEmail &&
-    !emailMatchesCompanyDomain(contactEmail, websiteDomain)
+    normalized.contactEmail &&
+    !emailMatchesCompanyDomain(normalized.contactEmail, websiteDomain)
+  ) {
+    normalized.contactEmail = "";
+    normalized.confidence = Math.min(normalized.confidence, 40);
+  }
+
+  if (
+    normalized.contactEmail &&
+    isGenericEmail(normalized.contactEmail)
   ) {
     normalized.contactEmail = "";
     normalized.confidence = Math.min(normalized.confidence, 40);
