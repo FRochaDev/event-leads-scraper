@@ -1,5 +1,4 @@
 import { buildContactPrompt } from "../prompts/contactPrompt.js";
-import { buildContactNavigationPrompt } from "../prompts/contactNavigationPrompt.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
@@ -12,7 +11,7 @@ export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
 
   for (const lead of leadsToEnrich) {
     try {
-      const contact = await findBestContactWithAgent({
+      const contact = await findBestContact({
         companyName: lead.companyName,
         website: lead.website,
         eventName
@@ -39,17 +38,33 @@ export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
   return results;
 }
 
-async function findBestContactWithAgent({ companyName, website, eventName }) {
+async function findBestContact({ companyName, website, eventName }) {
   if (!FIRECRAWL_API_KEY) {
     throw new Error("Missing FIRECRAWL_API_KEY environment variable");
   }
 
-  const startUrl = normalizeWebsiteUrl(website);
+  const homeUrl = normalizeWebsiteUrl(website);
 
-  if (!startUrl) {
+  if (!homeUrl) {
     return emptyContact();
   }
 
+  const homepage = await scrapeHomepageForLinks(homeUrl);
+  const bestUrl = chooseBestContactUrl(homepage.links, homeUrl);
+
+  console.log("BEST CONTACT URL:", companyName, bestUrl);
+
+  const contact = await scrapeContactFromUrl({
+    url: bestUrl,
+    companyName,
+    website: homeUrl,
+    eventName
+  });
+
+  return normalizeAndValidateContact(contact, homeUrl, bestUrl);
+}
+
+async function scrapeHomepageForLinks(url) {
   const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
     method: "POST",
     headers: {
@@ -57,21 +72,48 @@ async function findBestContactWithAgent({ companyName, website, eventName }) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      url: startUrl,
+      url,
       onlyMainContent: false,
       waitFor: 5000,
       timeout: 120000,
-      agent: {
-        model: "FIRE-1",
-        prompt: buildContactNavigationPrompt({
-          companyName,
-          website: startUrl
-        })
-      },
+      formats: ["markdown", "links"]
+    })
+  });
+
+  const data = await response.json();
+
+  console.log("FIRECRAWL HOMEPAGE STATUS:", response.status, url);
+
+  if (!response.ok || data.error) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  return {
+    markdown: data.data?.markdown || "",
+    links: data.data?.links || []
+  };
+}
+
+async function scrapeContactFromUrl({ url, companyName, website, eventName }) {
+  const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      url,
+      onlyMainContent: false,
+      waitFor: 5000,
+      timeout: 120000,
       formats: [
         {
           type: "json",
-          prompt: buildContactPrompt({ companyName, website: startUrl, eventName }),
+          prompt: buildContactPrompt({
+            companyName,
+            website,
+            eventName
+          }),
           schema: contactSchema()
         }
       ]
@@ -80,23 +122,102 @@ async function findBestContactWithAgent({ companyName, website, eventName }) {
 
   const data = await response.json();
 
-  console.log("FIRECRAWL CONTACT AGENT STATUS:", response.status, startUrl);
-  console.log("FIRECRAWL CONTACT AGENT DATA:", JSON.stringify(data).slice(0, 1500));
+  console.log("FIRECRAWL CONTACT SCRAPE STATUS:", response.status, url);
+  console.log("FIRECRAWL CONTACT SCRAPE DATA:", JSON.stringify(data).slice(0, 1500));
 
   if (!response.ok || data.error) {
     throw new Error(JSON.stringify(data));
   }
 
-  const raw =
-    data.data?.json ||
-    data.json ||
-    null;
+  return data.data?.json || data.json || null;
+}
 
-  if (!raw) {
-    return emptyContact();
+function chooseBestContactUrl(links, homeUrl) {
+  const normalizedLinks = Array.isArray(links)
+    ? links
+        .map(link => normalizeLink(link, homeUrl))
+        .filter(Boolean)
+        .filter(link => sameDomain(link, homeUrl))
+    : [];
+
+  const scored = normalizedLinks
+    .map(url => ({
+      url,
+      score: scoreUrl(url)
+    }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.url || homeUrl;
+}
+
+function scoreUrl(url) {
+  const path = getPath(url);
+
+  const rules = [
+    { token: "management-team", score: 100 },
+    { token: "management_team", score: 100 },
+    { token: "leadership-team", score: 95 },
+    { token: "leadership", score: 90 },
+    { token: "executive-team", score: 90 },
+    { token: "management", score: 80 },
+    { token: "our-team", score: 75 },
+    { token: "team", score: 70 },
+    { token: "people", score: 65 },
+    { token: "about-us", score: 45 },
+    { token: "about", score: 40 },
+    { token: "contact-us", score: 35 },
+    { token: "contact", score: 30 },
+    { token: "press", score: 15 },
+    { token: "media", score: 15 }
+  ];
+
+  const match = rules.find(rule => path.includes(rule.token));
+  return match ? match.score : 0;
+}
+
+function normalizeLink(link, homeUrl) {
+  const raw = typeof link === "string" ? link : link?.url;
+
+  if (!raw) return "";
+
+  try {
+    return new URL(raw, homeUrl).href.split("#")[0];
+  } catch {
+    return "";
   }
+}
 
-  return normalizeAndValidateContact(raw, startUrl);
+function normalizeWebsiteUrl(url) {
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    return "";
+  }
+}
+
+function sameDomain(urlA, urlB) {
+  return getDomain(urlA) === getDomain(urlB);
+}
+
+function getDomain(url) {
+  try {
+    return new URL(url.startsWith("http") ? url : `https://${url}`)
+      .hostname
+      .replace(/^www\./, "")
+      .toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function getPath(url) {
+  try {
+    return new URL(url).pathname.toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
 function contactSchema() {
@@ -116,16 +237,20 @@ function contactSchema() {
   };
 }
 
-function normalizeAndValidateContact(contact, website) {
+function normalizeAndValidateContact(contact, website, sourceUrl) {
+  if (!contact) {
+    return emptyContact();
+  }
+
   const websiteDomain = getDomain(website);
-  const sourceDomain = getDomain(contact.sourceUrl || website);
+  const contactEmail = contact.contactEmail || "";
 
   const normalized = {
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
-    contactEmail: contact.contactEmail || "",
+    contactEmail,
     contactRole: contact.contactRole || "",
-    sourceUrl: contact.sourceUrl || website,
+    sourceUrl: contact.sourceUrl || sourceUrl || "",
     confidence: Number(contact.confidence || 0),
     canceled: Boolean(contact.canceled)
   };
@@ -136,19 +261,24 @@ function normalizeAndValidateContact(contact, website) {
     return emptyContact();
   }
 
-  if (sourceDomain && websiteDomain && sourceDomain !== websiteDomain) {
-    return emptyContact();
-  }
-
   if (
-    normalized.contactEmail &&
-    !emailMatchesCompanyDomain(normalized.contactEmail, websiteDomain)
+    contactEmail &&
+    !emailMatchesCompanyDomain(contactEmail, websiteDomain)
   ) {
     normalized.contactEmail = "";
     normalized.confidence = Math.min(normalized.confidence, 40);
   }
 
   return normalized;
+}
+
+function emailMatchesCompanyDomain(email, websiteDomain) {
+  const emailDomain = email.split("@")[1]?.toLowerCase();
+
+  return (
+    emailDomain === websiteDomain ||
+    emailDomain?.endsWith(`.${websiteDomain}`)
+  );
 }
 
 function emptyContact() {
@@ -161,29 +291,4 @@ function emptyContact() {
     confidence: 0,
     canceled: true
   };
-}
-
-function normalizeWebsiteUrl(url) {
-  try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return `${parsed.protocol}//${parsed.hostname}`;
-  } catch {
-    return "";
-  }
-}
-
-function getDomain(url) {
-  try {
-    return new URL(url.startsWith("http") ? url : `https://${url}`)
-      .hostname
-      .replace(/^www\./, "")
-      .toLowerCase();
-  } catch {
-    return "";
-  }
-}
-
-function emailMatchesCompanyDomain(email, websiteDomain) {
-  const emailDomain = email.split("@")[1]?.toLowerCase();
-  return emailDomain === websiteDomain || emailDomain?.endsWith(`.${websiteDomain}`);
 }
