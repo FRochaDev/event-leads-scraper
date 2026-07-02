@@ -60,14 +60,14 @@ export async function createLeadRows(exhibitors) {
   for (const exhibitor of exhibitors) {
     const rowId = await leadsTable.add({
       eventId: exhibitor.eventId,
-      companyName: exhibitor.companyName,
+      prospectName: exhibitor.companyName,
       website: exhibitor.website,
       websiteFound: !!exhibitor.website,
 
-      email: exhibitor.email,
+      prospectEmail: exhibitor.email,
       emailFound: !!exhibitor.email,
 
-      emailContact: "",
+      contactInProspect: "",
       contactFirstName: "",
       contactLastName: "",
       contactRole: "",
@@ -96,10 +96,10 @@ export async function createLeadRows(exhibitors) {
 
 export async function updateLeadContact(rowId, contact) {
   return leadsTable.update(rowId, {
-    email: contact.companyEmail || "",
+    prospectEmail: contact.companyEmail || "",
     emailFound: !!contact.companyEmail,
 
-    emailContact: contact.personEmail || "",
+    contactInProspect: contact.personEmail || "",
 
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
