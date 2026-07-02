@@ -1,4 +1,5 @@
 import { buildContactPrompt } from "../prompts/contactPrompt.js";
+import { buildContactNavigationPrompt } from "../prompts/contactNavigationPrompt.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
@@ -11,7 +12,7 @@ export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
 
   for (const lead of leadsToEnrich) {
     try {
-      const contact = await findBestContactFromCompanyWebsite({
+      const contact = await findBestContactWithAgent({
         companyName: lead.companyName,
         website: lead.website,
         eventName
@@ -23,7 +24,6 @@ export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
         success: true,
         contact
       });
-
     } catch (error) {
       console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
 
@@ -39,43 +39,17 @@ export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
   return results;
 }
 
-async function findBestContactFromCompanyWebsite({ companyName, website, eventName }) {
+async function findBestContactWithAgent({ companyName, website, eventName }) {
   if (!FIRECRAWL_API_KEY) {
     throw new Error("Missing FIRECRAWL_API_KEY environment variable");
   }
 
-  const urls = buildCandidateCompanyUrls(website);
+  const startUrl = normalizeWebsiteUrl(website);
 
-  const contacts = [];
-
-  for (const url of urls) {
-    const contact = await scrapeContactPage({
-      url,
-      companyName,
-      website,
-      eventName
-    });
-
-    if (contact && !contact.canceled) {
-      contacts.push(contact);
-    }
+  if (!startUrl) {
+    return emptyContact();
   }
 
-  const best = contacts
-    .sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0))[0];
-
-  return best || {
-    contactFirstName: "",
-    contactLastName: "",
-    contactEmail: "",
-    contactRole: "",
-    sourceUrl: "",
-    confidence: 0,
-    canceled: true
-  };
-}
-
-async function scrapeContactPage({ url, companyName, website, eventName }) {
   const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
     method: "POST",
     headers: {
@@ -83,14 +57,21 @@ async function scrapeContactPage({ url, companyName, website, eventName }) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      url,
+      url: startUrl,
       onlyMainContent: false,
       waitFor: 5000,
       timeout: 120000,
+      agent: {
+        model: "FIRE-1",
+        prompt: buildContactNavigationPrompt({
+          companyName,
+          website: startUrl
+        })
+      },
       formats: [
         {
           type: "json",
-          prompt: buildContactPrompt({ companyName, website, eventName }),
+          prompt: buildContactPrompt({ companyName, website: startUrl, eventName }),
           schema: contactSchema()
         }
       ]
@@ -99,11 +80,11 @@ async function scrapeContactPage({ url, companyName, website, eventName }) {
 
   const data = await response.json();
 
-  console.log("FIRECRAWL CONTACT SCRAPE STATUS:", response.status, url);
-  console.log("FIRECRAWL CONTACT SCRAPE DATA:", JSON.stringify(data).slice(0, 1000));
+  console.log("FIRECRAWL CONTACT AGENT STATUS:", response.status, startUrl);
+  console.log("FIRECRAWL CONTACT AGENT DATA:", JSON.stringify(data).slice(0, 1500));
 
   if (!response.ok || data.error) {
-    return null;
+    throw new Error(JSON.stringify(data));
   }
 
   const raw =
@@ -112,39 +93,10 @@ async function scrapeContactPage({ url, companyName, website, eventName }) {
     null;
 
   if (!raw) {
-    return null;
+    return emptyContact();
   }
 
-  return normalizeAndValidateContact(raw, website, url);
-}
-
-function buildCandidateCompanyUrls(website) {
-  const base = normalizeBaseUrl(website);
-
-  if (!base) {
-    return [];
-  }
-
-  return [
-    base,
-    `${base}/about`,
-    `${base}/about-us`,
-    `${base}/team`,
-    `${base}/leadership`,
-    `${base}/management`,
-    `${base}/people`,
-    `${base}/contact`,
-    `${base}/contact-us`
-  ];
-}
-
-function normalizeBaseUrl(url) {
-  try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return `${parsed.protocol}//${parsed.hostname}`;
-  } catch {
-    return "";
-  }
+  return normalizeAndValidateContact(raw, startUrl);
 }
 
 function contactSchema() {
@@ -164,30 +116,34 @@ function contactSchema() {
   };
 }
 
-function normalizeAndValidateContact(contact, website, fallbackSourceUrl) {
-  const email = contact.contactEmail || "";
+function normalizeAndValidateContact(contact, website) {
+  const websiteDomain = getDomain(website);
+  const sourceDomain = getDomain(contact.sourceUrl || website);
 
   const normalized = {
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
-    contactEmail: email,
+    contactEmail: contact.contactEmail || "",
     contactRole: contact.contactRole || "",
-    sourceUrl: contact.sourceUrl || fallbackSourceUrl || "",
+    sourceUrl: contact.sourceUrl || website,
     confidence: Number(contact.confidence || 0),
     canceled: Boolean(contact.canceled)
   };
 
-  if (normalized.canceled) {
-    return normalized;
-  }
+  if (normalized.canceled) return normalized;
 
   if (!normalized.contactFirstName && !normalized.contactLastName) {
-    normalized.canceled = true;
-    normalized.confidence = 0;
-    return normalized;
+    return emptyContact();
   }
 
-  if (email && !emailMatchesCompanyDomain(email, website)) {
+  if (sourceDomain && websiteDomain && sourceDomain !== websiteDomain) {
+    return emptyContact();
+  }
+
+  if (
+    normalized.contactEmail &&
+    !emailMatchesCompanyDomain(normalized.contactEmail, websiteDomain)
+  ) {
     normalized.contactEmail = "";
     normalized.confidence = Math.min(normalized.confidence, 40);
   }
@@ -195,15 +151,39 @@ function normalizeAndValidateContact(contact, website, fallbackSourceUrl) {
   return normalized;
 }
 
-function emailMatchesCompanyDomain(email, website) {
-  try {
-    const emailDomain = email.split("@")[1]?.toLowerCase();
-    const websiteDomain = new URL(
-      website.startsWith("http") ? website : `https://${website}`
-    ).hostname.replace(/^www\./, "").toLowerCase();
+function emptyContact() {
+  return {
+    contactFirstName: "",
+    contactLastName: "",
+    contactEmail: "",
+    contactRole: "",
+    sourceUrl: "",
+    confidence: 0,
+    canceled: true
+  };
+}
 
-    return emailDomain === websiteDomain || emailDomain?.endsWith(`.${websiteDomain}`);
+function normalizeWebsiteUrl(url) {
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return `${parsed.protocol}//${parsed.hostname}`;
   } catch {
-    return false;
+    return "";
   }
+}
+
+function getDomain(url) {
+  try {
+    return new URL(url.startsWith("http") ? url : `https://${url}`)
+      .hostname
+      .replace(/^www\./, "")
+      .toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function emailMatchesCompanyDomain(email, websiteDomain) {
+  const emailDomain = email.split("@")[1]?.toLowerCase();
+  return emailDomain === websiteDomain || emailDomain?.endsWith(`.${websiteDomain}`);
 }
