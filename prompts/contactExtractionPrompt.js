@@ -22,9 +22,14 @@ Return TWO different email fields:
 - Only return if explicitly visible in a trustworthy public source.
 - Never invent.
 - Never infer.
+- If an email belongs to the identified person, it MUST be returned in personEmail.
+- Do not place individual emails in companyEmail.
 
 2. companyEmail
 - Best generic company email if no personEmail is available.
+- Only use companyEmail for generic/shared inboxes.
+- Do not return an individual person's email in companyEmail.
+- Leave companyEmail blank if personEmail is available.
 - Prefer:
   marketing@
   events@
@@ -54,7 +59,7 @@ Rules:
 - The email must belong to the company's own domain.
 - Never invent or infer an email address.
 - Do not use emails belonging to event organisers, media companies or third parties.
-- If no suitable person is found, leave person fields blank.
+If no suitable person is found, leave contactFirstName, contactLastName, contactRole and personEmail blank.
 - If no email is found, leave email fields blank.
 - Return JSON only.
 
