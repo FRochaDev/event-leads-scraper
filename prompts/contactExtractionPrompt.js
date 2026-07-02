@@ -40,6 +40,17 @@ Return TWO different email fields:
   contact@
 - Must belong to the company domain.
 
+Also return the company's country whenever it can be confidently determined from the company's website or another trustworthy public source.
+
+Examples:
+United Kingdom
+Germany
+Portugal
+France
+United States
+
+Leave country blank if uncertain.
+
 Preferred person roles:
 1. Event Manager
 2. Exhibition Manager
@@ -71,6 +82,7 @@ Schema:
   "personEmail": "",
   "companyEmail": "",
   "contactRole": "",
+  "country": "",
   "sourceUrl": "",
   "confidence": 0,
   "canceled": false

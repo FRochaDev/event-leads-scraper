@@ -252,6 +252,7 @@ function contactSchema() {
       personEmail: { type: "string" },
       companyEmail: { type: "string" },
       contactRole: { type: "string" },
+      country: { type: "string" },
       sourceUrl: { type: "string" },
       confidence: { type: "number" },
       canceled: { type: "boolean" }
@@ -276,6 +277,7 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
     personEmail,
     companyEmail,
     contactRole: contact.contactRole || "",
+    country: contact.country || "",
     sourceUrl: contact.sourceUrl || sourceUrl || "",
     confidence: Number(contact.confidence || 0),
     canceled: Boolean(contact.canceled)

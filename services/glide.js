@@ -95,9 +95,9 @@ export async function createLeadRows(exhibitors) {
 }
 
 export async function updateLeadContact(rowId, contact) {
-  return leadsTable.update(rowId, {
+  const update = {
     prospectEmail: contact.companyEmail || "",
-    emailFound: !!contact.companyEmail,
+    emailFound: !!(contact.companyEmail || contact.personEmail),
 
     contactInProspect: contact.personEmail || "",
 
@@ -106,5 +106,12 @@ export async function updateLeadContact(rowId, contact) {
     contactRole: contact.contactRole || "",
     contactSourceUrl: contact.sourceUrl || "",
     confidence: contact.confidence || 0
-  });
+  };
+
+  // Só atualiza o país se o enrichment tiver encontrado um valor
+  if (contact.country) {
+    update.country = contact.country;
+  }
+
+  return leadsTable.update(rowId, update);
 }
