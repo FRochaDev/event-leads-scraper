@@ -171,7 +171,7 @@ function scoreUrl(url) {
     { token: "leadership-team", score: 95 },
     { token: "leadership", score: 90 },
     { token: "executive-team", score: 90 },
-    { token: "management", score: 80 },
+    { token: "management-team", score: 100 },
     { token: "our-team", score: 75 },
     { token: "team", score: 70 },
     { token: "people", score: 65 },
@@ -181,7 +181,14 @@ function scoreUrl(url) {
     { token: "contact", score: 30 }
   ];
 
-  const match = rules.find(rule => path.includes(rule.token));
+  const pathParts = path
+  .split(/[\/\-_]+/)
+  .filter(Boolean);
+
+const match = rules.find(rule => {
+  const tokenParts = rule.token.split("-");
+  return tokenParts.every(part => pathParts.includes(part));
+});
   return match ? match.score : 0;
 }
 
