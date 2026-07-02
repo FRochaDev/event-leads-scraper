@@ -75,9 +75,14 @@ const exhibitors = await extractExhibitorsFromEvent({
       });
 
       for (const result of enrichResults) {
-        if (result.success && result.contact && !result.contact.canceled) {
-          await updateLeadContact(result.rowId, result.contact);
-        }
+if (
+  result.success &&
+  result.contact &&
+  !result.contact.canceled &&
+  result.contact.contactEmail
+) {
+  await updateLeadContact(result.rowId, result.contact);
+}
       }
     }
 
