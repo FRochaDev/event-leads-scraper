@@ -155,15 +155,15 @@ function scoreUrl(url) {
   const path = getPath(url);
 
   if (
-  path.includes("/news") ||
-  path.includes("/blog") ||
-  path.includes("/press") ||
-  path.includes("/media") ||
-  path.includes("/resources") ||
-  path.includes("/case-studies")
-) {
-  return 0;
-}
+    path.includes("/news") ||
+    path.includes("/blog") ||
+    path.includes("/press") ||
+    path.includes("/media") ||
+    path.includes("/resources") ||
+    path.includes("/case-studies")
+  ) {
+    return 0;
+  }
 
   const rules = [
     { token: "management-team", score: 100 },
@@ -178,9 +178,7 @@ function scoreUrl(url) {
     { token: "about-us", score: 45 },
     { token: "about", score: 40 },
     { token: "contact-us", score: 35 },
-    { token: "contact", score: 30 },
-    { token: "press", score: 15 },
-    { token: "media", score: 15 }
+    { token: "contact", score: 30 }
   ];
 
   const match = rules.find(rule => path.includes(rule.token));
