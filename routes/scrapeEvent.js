@@ -79,7 +79,10 @@ if (
   result.success &&
   result.contact &&
   !result.contact.canceled &&
-  result.contact.contactEmail
+  (
+    result.contact.personEmail ||
+    result.contact.companyEmail
+  )
 ) {
   await updateLeadContact(result.rowId, result.contact);
 }

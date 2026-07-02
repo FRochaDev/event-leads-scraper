@@ -1,6 +1,6 @@
 export function buildContactPrompt({ companyName, website, eventName }) {
   return `
-You are researching potential B2B clients for exhibition stand design and trade show services.
+You are extracting contact information for B2B prospecting.
 
 Company:
 ${companyName}
@@ -11,26 +11,31 @@ ${website || "Unknown"}
 Event:
 ${eventName}
 
-Your task is to identify the SINGLE BEST person responsible for deciding whether this company participates in exhibitions, trade shows, conferences or industry events.
+Goal:
+Find the best professional contact for exhibition stand design, trade shows, events, marketing, partnerships or business development.
 
-VERY IMPORTANT
+Return TWO different email fields:
 
-You MUST ONLY use information that belongs to the company's own website.
+1. personEmail
+- Individual business email of the person.
+- Example: john.smith@company.com
+- Only return if explicitly visible in a trustworthy public source.
+- Never invent.
+- Never infer.
 
-DO NOT use information from:
-- event organisers
-- conference websites
-- sponsor pages
-- news websites
-- press releases
-- LinkedIn summaries
-- partner websites
-- directories
+2. companyEmail
+- Best generic company email if no personEmail is available.
+- Prefer:
+  marketing@
+  events@
+  partnerships@
+  business@
+  sales@
+  info@
+  contact@
+- Must belong to the company domain.
 
-The contact must work for the company itself.
-
-Preferred roles (highest priority first):
-
+Preferred person roles:
 1. Event Manager
 2. Exhibition Manager
 3. Trade Show Manager
@@ -41,57 +46,29 @@ Preferred roles (highest priority first):
 8. Head of Marketing
 9. Marketing Director
 10. CMO
-11. CEO or Founder ONLY if nobody else exists.
+11. CEO or Founder only if no better contact exists.
 
-Email rules:
+Rules:
+- Prefer information published on the company's own website.
+- If the company's website does not provide a suitable email, you may use another trustworthy public source.
+- The email must belong to the company's own domain.
+- Never invent or infer an email address.
+- Do not use emails belonging to event organisers, media companies or third parties.
+- If no suitable person is found, leave person fields blank.
+- If no email is found, leave email fields blank.
+- Return JSON only.
 
-- Return only a visible individual business email belonging to the person.
-- The email must belong to the company domain.
-- Do not return generic emails such as info@, contact@, sales@, marketing@, support@, press@, media@, hello@, enquiries@.
-- Never invent an email.
-- Never infer an email pattern.
-- If no individual email is visible, leave contactEmail blank.
-
-Example:
-
-Website:
-https://cityfibre.com
-
-Valid:
-john@cityfibre.com
-
-Invalid:
-john@gmail.com
-john@linkedin.com
-john@terrapinn.com
-john@totaltele.com
-
-Return ONLY one JSON object using exactly this schema:
-
+Schema:
 {
   "company": "",
   "contactFirstName": "",
   "contactLastName": "",
-  "contactEmail": "",
+  "personEmail": "",
+  "companyEmail": "",
   "contactRole": "",
   "sourceUrl": "",
   "confidence": 0,
   "canceled": false
 }
-
-If no suitable contact is found on the company's own website, return:
-
-{
-  "company": "${companyName}",
-  "contactFirstName": "",
-  "contactLastName": "",
-  "contactEmail": "",
-  "contactRole": "",
-  "sourceUrl": "",
-  "confidence": 0,
-  "canceled": true
-}
-
-Return JSON only.
 `;
 }

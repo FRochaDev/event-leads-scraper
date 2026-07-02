@@ -1,4 +1,4 @@
-import { buildContactPrompt } from "../prompts/contactPrompt.js";
+import { buildContactPrompt } from "../prompts/contactExtractionPrompt.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
@@ -249,7 +249,8 @@ function contactSchema() {
       company: { type: "string" },
       contactFirstName: { type: "string" },
       contactLastName: { type: "string" },
-      contactEmail: { type: "string" },
+      personEmail: { type: "string" },
+      companyEmail: { type: "string" },
       contactRole: { type: "string" },
       sourceUrl: { type: "string" },
       confidence: { type: "number" },
@@ -266,38 +267,44 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
 
   const websiteDomain = getDomain(website);
 
+  const personEmail = contact.personEmail || "";
+  const companyEmail = contact.companyEmail || "";
+
   const normalized = {
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
-    contactEmail: contact.contactEmail || "",
+    personEmail,
+    companyEmail,
     contactRole: contact.contactRole || "",
     sourceUrl: contact.sourceUrl || sourceUrl || "",
     confidence: Number(contact.confidence || 0),
     canceled: Boolean(contact.canceled)
   };
 
-  if (normalized.canceled) {
-    return normalized;
-  }
-
-  if (!normalized.contactFirstName && !normalized.contactLastName) {
-    return emptyContact();
+  if (
+    normalized.personEmail &&
+    !emailMatchesCompanyDomain(normalized.personEmail, websiteDomain)
+  ) {
+    normalized.personEmail = "";
   }
 
   if (
-    normalized.contactEmail &&
-    !emailMatchesCompanyDomain(normalized.contactEmail, websiteDomain)
+    normalized.companyEmail &&
+    !emailMatchesCompanyDomain(normalized.companyEmail, websiteDomain)
   ) {
-    normalized.contactEmail = "";
-    normalized.confidence = Math.min(normalized.confidence, 40);
+    normalized.companyEmail = "";
   }
 
   if (
-    normalized.contactEmail &&
-    isGenericEmail(normalized.contactEmail)
+    normalized.companyEmail &&
+    !isGenericEmail(normalized.companyEmail)
   ) {
-    normalized.contactEmail = "";
-    normalized.confidence = Math.min(normalized.confidence, 40);
+    normalized.companyEmail = "";
+  }
+
+  if (!normalized.personEmail && !normalized.companyEmail) {
+    normalized.canceled = true;
+    normalized.confidence = 0;
   }
 
   return normalized;
@@ -335,7 +342,8 @@ function emptyContact() {
   return {
     contactFirstName: "",
     contactLastName: "",
-    contactEmail: "",
+    personEmail: "",
+    companyEmail: "",
     contactRole: "",
     sourceUrl: "",
     confidence: 0,

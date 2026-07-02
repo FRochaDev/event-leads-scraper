@@ -11,29 +11,26 @@ const leadsTable = table({
   token: GLIDE_TOKEN,
   app: APP_ID,
   table: "native-table-2q2iGRqESIW68SLykDwf",
-  columns: {
-    eventId: { type: "string", name: "wqqEw" },
-    companyName: { type: "string", name: "Zd1GL" },
-    website: { type: "uri", name: "oSm1A" },
-    websiteFound: { type: "boolean", name: "ltsRJ" },
-
-    email: { type: "email-address", name: "Xz7P9" },
-    emailFound: { type: "boolean", name: "GxyYQ" },
-
-    emailContact: { type: "email-address", name: "mzBFs" },
-    contactFirstName: { type: "string", name: "gZOTI" },
-    contactLastName: { type: "string", name: "bozIA" },
-    contactRole: { type: "string", name: "YNPib" },
-    contactSourceUrl: { type: "uri", name: "vpvOh" },
-
-    contactPage: { type: "uri", name: "Trypw" },
-    sourceUrl: { type: "uri", name: "py9X9" },
-    country: { type: "string", name: "h1fz0" },
-    selected: { type: "boolean", name: "8XjYu" },
-    contacted: { type: "boolean", name: "Jz3lG" },
-    notes: { type: "string", name: "0LE4i" },
-    confidence: { type: "number", name: "CsRyg" },
-    createdAt: { type: "date-time", name: "5Jee0" }
+columns: {
+        eventId: { type: "string", name: "wqqEw" },
+        prospectName: { type: "string", name: "Zd1GL" },
+        website: { type: "uri", name: "oSm1A" },
+        websiteFound: { type: "boolean", name: "ltsRJ" },
+        prospectEmail: { type: "email-address", name: "Xz7P9" },
+        contactInProspect: { type: "email-address", name: "mzBFs" },
+        emailFound: { type: "boolean", name: "GxyYQ" },
+        contactFirstName: { type: "string", name: "gZOTI" },
+        contactLastName: { type: "string", name: "bozIA" },
+        contactRole: { type: "string", name: "YNPib" },
+        contactPage: { type: "uri", name: "Trypw" },
+        sourceUrl: { type: "uri", name: "py9X9" },
+        contactSourceUrl: { type: "uri", name: "vpvOh" },
+        country: { type: "string", name: "h1fz0" },
+        selected: { type: "boolean", name: "8XjYu" },
+        contacted: { type: "boolean", name: "Jz3lG" },
+        notes: { type: "string", name: "0LE4i" },
+        confidence: { type: "number", name: "CsRyg" },
+        createdAt: { type: "date-time", name: "5Jee0" }
   }
 });
 
@@ -99,11 +96,15 @@ export async function createLeadRows(exhibitors) {
 
 export async function updateLeadContact(rowId, contact) {
   return leadsTable.update(rowId, {
+    email: contact.companyEmail || "",
+    emailFound: !!contact.companyEmail,
+
+    emailContact: contact.personEmail || "",
+
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
     contactRole: contact.contactRole || "",
     contactSourceUrl: contact.sourceUrl || "",
-    emailContact: contact.contactEmail || "",
     confidence: contact.confidence || 0
   });
 }
