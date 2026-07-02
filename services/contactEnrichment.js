@@ -54,19 +54,14 @@ async function findBestContact({ companyName, website, eventName }) {
 
   console.log("BEST CONTACT URL:", companyName, bestUrl);
 
-  const contact = await scrapeContactFromUrl({
+  const rawContact = await scrapeContactFromUrl({
     url: bestUrl,
     companyName,
     website: homeUrl,
     eventName
   });
 
-  if (normalized.contactEmail && isGenericEmail(normalized.contactEmail)) {
-  normalized.contactEmail = "";
-  normalized.confidence = Math.min(normalized.confidence, 40);
-}
-
-  return normalizeAndValidateContact(contact, homeUrl, bestUrl);
+  return normalizeAndValidateContact(rawContact, homeUrl, bestUrl);
 }
 
 async function scrapeHomepageForLinks(url) {
@@ -182,24 +177,24 @@ function scoreUrl(url) {
     { token: "leadership-team", score: 95 },
     { token: "leadership", score: 90 },
     { token: "executive-team", score: 90 },
-    { token: "management-team", score: 100 },
+    { token: "contact-us", score: 85 },
+    { token: "contact", score: 80 },
     { token: "our-team", score: 75 },
     { token: "team", score: 70 },
     { token: "people", score: 40 },
-    { token: "about-us", score: 45 },
-    { token: "about", score: 40 },
-    { token: "contact-us", score: 85 },
-    { token: "contact", score: 80 }
+    { token: "about-us", score: 35 },
+    { token: "about", score: 30 }
   ];
 
   const pathParts = path
-  .split(/[\/\-_]+/)
-  .filter(Boolean);
+    .split(/[\/\-_]+/)
+    .filter(Boolean);
 
-const match = rules.find(rule => {
-  const tokenParts = rule.token.split("-");
-  return tokenParts.every(part => pathParts.includes(part));
-});
+  const match = rules.find(rule => {
+    const tokenParts = rule.token.split(/[\-_]+/);
+    return tokenParts.every(part => pathParts.includes(part));
+  });
+
   return match ? match.score : 0;
 }
 
@@ -270,19 +265,20 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
   }
 
   const websiteDomain = getDomain(website);
-  const contactEmail = contact.contactEmail || "";
 
   const normalized = {
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
-    contactEmail,
+    contactEmail: contact.contactEmail || "",
     contactRole: contact.contactRole || "",
     sourceUrl: contact.sourceUrl || sourceUrl || "",
     confidence: Number(contact.confidence || 0),
     canceled: Boolean(contact.canceled)
   };
 
-  if (normalized.canceled) return normalized;
+  if (normalized.canceled) {
+    return normalized;
+  }
 
   if (!normalized.contactFirstName && !normalized.contactLastName) {
     return emptyContact();
@@ -316,18 +312,6 @@ function emailMatchesCompanyDomain(email, websiteDomain) {
   );
 }
 
-function emptyContact() {
-  return {
-    contactFirstName: "",
-    contactLastName: "",
-    contactEmail: "",
-    contactRole: "",
-    sourceUrl: "",
-    confidence: 0,
-    canceled: true
-  };
-}
-
 function isGenericEmail(email) {
   const localPart = email.split("@")[0]?.toLowerCase();
 
@@ -345,4 +329,16 @@ function isGenericEmail(email) {
     "admin",
     "office"
   ].includes(localPart);
+}
+
+function emptyContact() {
+  return {
+    contactFirstName: "",
+    contactLastName: "",
+    contactEmail: "",
+    contactRole: "",
+    sourceUrl: "",
+    confidence: 0,
+    canceled: true
+  };
 }
