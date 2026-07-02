@@ -154,6 +154,17 @@ function chooseBestContactUrl(links, homeUrl) {
 function scoreUrl(url) {
   const path = getPath(url);
 
+  if (
+  path.includes("/news") ||
+  path.includes("/blog") ||
+  path.includes("/press") ||
+  path.includes("/media") ||
+  path.includes("/resources") ||
+  path.includes("/case-studies")
+) {
+  return 0;
+}
+
   const rules = [
     { token: "management-team", score: 100 },
     { token: "management_team", score: 100 },
