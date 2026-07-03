@@ -283,23 +283,11 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
 
   const websiteDomain = getDomain(website);
 
-  const personEmail = contact.personEmail || "";
-  const companyEmail = contact.companyEmail || "";
-
-  if (normalized.personEmail && normalized.companyEmail) {
-  normalized.companyEmail = "";
-}
-
-if (normalized.personEmail && isGenericEmail(normalized.personEmail)) {
-  normalized.companyEmail = normalized.companyEmail || normalized.personEmail;
-  normalized.personEmail = "";
-}
-
   const normalized = {
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",
-    personEmail,
-    companyEmail,
+    personEmail: contact.personEmail || "",
+    companyEmail: contact.companyEmail || "",
     contactRole: contact.contactRole || "",
     country: contact.country || "",
     sourceUrl: contact.sourceUrl || sourceUrl || "",
@@ -325,6 +313,10 @@ if (normalized.personEmail && isGenericEmail(normalized.personEmail)) {
     normalized.companyEmail &&
     !isGenericEmail(normalized.companyEmail)
   ) {
+    normalized.companyEmail = "";
+  }
+
+  if (normalized.personEmail && normalized.companyEmail) {
     normalized.companyEmail = "";
   }
 
