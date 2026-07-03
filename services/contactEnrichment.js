@@ -286,6 +286,15 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
   const personEmail = contact.personEmail || "";
   const companyEmail = contact.companyEmail || "";
 
+  if (normalized.personEmail && normalized.companyEmail) {
+  normalized.companyEmail = "";
+}
+
+if (normalized.personEmail && isGenericEmail(normalized.personEmail)) {
+  normalized.companyEmail = normalized.companyEmail || normalized.personEmail;
+  normalized.personEmail = "";
+}
+
   const normalized = {
     contactFirstName: contact.contactFirstName || "",
     contactLastName: contact.contactLastName || "",

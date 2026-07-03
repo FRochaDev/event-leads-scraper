@@ -14,42 +14,8 @@ ${eventName}
 Goal:
 Find the best professional contact for exhibition stand design, trade shows, events, marketing, partnerships or business development.
 
-Return TWO different email fields:
-
-1. personEmail
-- Individual business email of the person.
-- Example: john.smith@company.com
-- Only return if explicitly visible in a trustworthy public source.
-- Never invent.
-- Never infer.
-- If an email belongs to the identified person, it MUST be returned in personEmail.
-- Do not place individual emails in companyEmail.
-
-2. companyEmail
-- Best generic company email if no personEmail is available.
-- Only use companyEmail for generic/shared inboxes.
-- Do not return an individual person's email in companyEmail.
-- Leave companyEmail blank if personEmail is available.
-- Prefer:
-  marketing@
-  events@
-  partnerships@
-  business@
-  sales@
-  info@
-  contact@
-- Must belong to the company domain.
-
-Also return the company's country whenever it can be confidently determined from the company's website or another trustworthy public source.
-
-Examples:
-United Kingdom
-Germany
-Portugal
-France
-United States
-
-Leave country blank if uncertain.
+First, identify the best relevant person.
+Only after that, extract emails.
 
 Preferred person roles:
 1. Event Manager
@@ -64,14 +30,33 @@ Preferred person roles:
 10. CMO
 11. CEO or Founder only if no better contact exists.
 
+Email fields:
+
+personEmail:
+- Individual business email of the identified person.
+- Example: john.smith@company.com
+- Must belong to the company domain.
+- Never invent or infer.
+- Do not place individual emails in companyEmail.
+
+companyEmail:
+- Generic/shared company email.
+- Only use as fallback if no personEmail is visible.
+- Do not stop searching just because a generic email exists.
+- If a relevant person is visible but no personal email is visible, still return the person's name and role, and put the generic email in companyEmail.
+- Prefer: marketing@, events@, partnerships@, business@, sales@, info@, contact@
+- Must belong to the company domain.
+
+Country:
+- Return the company's country if confidently determined.
+- Leave country blank if uncertain.
+
 Rules:
-- Prefer information published on the company's own website.
-- If the company's website does not provide a suitable email, you may use another trustworthy public source.
-- The email must belong to the company's own domain.
-- Never invent or infer an email address.
-- Do not use emails belonging to event organisers, media companies or third parties.
-If no suitable person is found, leave contactFirstName, contactLastName, contactRole and personEmail blank.
-- If no email is found, leave email fields blank.
+- Prefer information from the company's own website.
+- If needed, use another trustworthy public source.
+- Do not use emails from event organisers, media companies or third parties.
+- If no suitable person is found, leave contactFirstName, contactLastName, contactRole and personEmail blank.
+- If no email is found, leave both email fields blank.
 - Return JSON only.
 
 Schema:
