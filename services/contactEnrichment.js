@@ -1,6 +1,7 @@
 import { buildContactPrompt } from "../prompts/contactExtractionPrompt.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
+const CONCURRENCY = 3;
 
 export async function enrichLeadContacts({
   leads,
@@ -13,44 +14,64 @@ export async function enrichLeadContacts({
     .slice(0, enrichLimit);
 
   const results = [];
+  let completed = 0;
+  let totalCredits = 0;
 
-for (let i = 0; i < leadsToEnrich.length; i++) {
-  const lead = leadsToEnrich[i];
+  async function processLead(lead) {
+    try {
+      const result = await findBestContact({
+        companyName: lead.companyName,
+        website: lead.website,
+        eventName
+      });
 
-  console.log(
-    `ENRICHMENT PROGRESS: ${i + 1}/${leadsToEnrich.length} - ${lead.companyName}`
-  );
+      totalCredits += result.creditsUsed || 0;
+      completed++;
 
-  if (onProgress) {
-    await onProgress(i + 1, leadsToEnrich.length, lead.companyName);
+      console.log(
+        `ENRICHMENT PROGRESS: ${completed}/${leadsToEnrich.length} - ${lead.companyName}`
+      );
+
+      if (onProgress) {
+        await onProgress(completed, leadsToEnrich.length, lead.companyName);
+      }
+
+      return {
+        rowId: lead.rowId,
+        companyName: lead.companyName,
+        success: true,
+        contact: result.contact,
+        creditsUsed: result.creditsUsed || 0
+      };
+    } catch (error) {
+      completed++;
+
+      console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
+
+      if (onProgress) {
+        await onProgress(completed, leadsToEnrich.length, lead.companyName);
+      }
+
+      return {
+        rowId: lead.rowId,
+        companyName: lead.companyName,
+        success: false,
+        error: error.message,
+        creditsUsed: 0
+      };
+    }
   }
 
-  try {
-    const contact = await findBestContact({
-      companyName: lead.companyName,
-      website: lead.website,
-      eventName
-    });
-
-    results.push({
-      rowId: lead.rowId,
-      companyName: lead.companyName,
-      success: true,
-      contact
-    });
-  } catch (error) {
-    console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
-
-    results.push({
-      rowId: lead.rowId,
-      companyName: lead.companyName,
-      success: false,
-      error: error.message
-    });
+  for (let i = 0; i < leadsToEnrich.length; i += CONCURRENCY) {
+    const batch = leadsToEnrich.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(batch.map(processLead));
+    results.push(...batchResults);
   }
-}
 
-return results;
+  return {
+    results,
+    totalCredits
+  };
 }
 
 async function findBestContact({ companyName, website, eventName }) {
@@ -61,7 +82,10 @@ async function findBestContact({ companyName, website, eventName }) {
   const homeUrl = normalizeWebsiteUrl(website);
 
   if (!homeUrl) {
-    return emptyContact();
+    return {
+      contact: emptyContact(),
+      creditsUsed: 0
+    };
   }
 
   const homepage = await scrapeHomepageForLinks(homeUrl);
@@ -69,14 +93,25 @@ async function findBestContact({ companyName, website, eventName }) {
 
   console.log("BEST CONTACT URL:", companyName, bestUrl);
 
-  const rawContact = await scrapeContactFromUrl({
+  const contactResult = await scrapeContactFromUrl({
     url: bestUrl,
     companyName,
     website: homeUrl,
     eventName
   });
 
-  return normalizeAndValidateContact(rawContact, homeUrl, bestUrl);
+  const contact = normalizeAndValidateContact(
+    contactResult.contact,
+    homeUrl,
+    bestUrl
+  );
+
+  return {
+    contact,
+    creditsUsed:
+      (homepage.creditsUsed || 0) +
+      (contactResult.creditsUsed || 0)
+  };
 }
 
 async function scrapeHomepageForLinks(url) {
@@ -105,7 +140,8 @@ async function scrapeHomepageForLinks(url) {
 
   return {
     markdown: data.data?.markdown || "",
-    links: data.data?.links || []
+    links: data.data?.links || [],
+    creditsUsed: data.data?.metadata?.creditsUsed || 0
   };
 }
 
@@ -138,13 +174,19 @@ async function scrapeContactFromUrl({ url, companyName, website, eventName }) {
   const data = await response.json();
 
   console.log("FIRECRAWL CONTACT SCRAPE STATUS:", response.status, url);
-  console.log("FIRECRAWL CONTACT SCRAPE DATA:", JSON.stringify(data).slice(0, 1500));
+  console.log(
+    "FIRECRAWL CONTACT SCRAPE DATA:",
+    JSON.stringify(data).slice(0, 1500)
+  );
 
   if (!response.ok || data.error) {
     throw new Error(JSON.stringify(data));
   }
 
-  return data.data?.json || data.json || null;
+  return {
+    contact: data.data?.json || data.json || null,
+    creditsUsed: data.data?.metadata?.creditsUsed || 0
+  };
 }
 
 function chooseBestContactUrl(links, homeUrl) {

@@ -68,13 +68,23 @@ export async function extractExhibitorsFromEvent({
     data.exhibitors ||
     [];
 
-  if (!Array.isArray(rawExhibitors)) {
-    return [];
-  }
+const creditsUsed = data.data?.metadata?.creditsUsed || 0;
 
-  return rawExhibitors
-    .slice(0, resultLimit)
-    .map(item => normalizeFirecrawlExhibitor(item, eventId, startUrl))
-    .filter(item => item.companyName);
+if (!Array.isArray(rawExhibitors)) {
+  return {
+    exhibitors: [],
+    creditsUsed
+  };
+}
+
+const exhibitors = rawExhibitors
+  .slice(0, resultLimit)
+  .map(item => normalizeFirecrawlExhibitor(item, eventId, startUrl))
+  .filter(item => item.companyName);
+
+return {
+  exhibitors,
+  creditsUsed
+};
 }
 

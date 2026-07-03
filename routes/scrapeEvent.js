@@ -17,7 +17,6 @@ export async function scrapeEvent(req, res) {
   const startUrl = body.start_url;
 
   const resultLimit = Math.min(Number(body.result_limit) || 20, 100);
-
   const enrichLimit = Math.min(Number(body.enrich_limit) || 0, 50);
 
   if (!eventId || !eventName || !startUrl) {
@@ -30,17 +29,19 @@ export async function scrapeEvent(req, res) {
 
   try {
     await updateEventStatus(eventId, {
-      leadsScrappingStatus: "Running",
+      leadsScrappingStatus: "Scraping exhibitors...",
       leadsLastScrapped: new Date()
     });
 
+    const extraction = await extractExhibitorsFromEvent({
+      eventId,
+      eventName,
+      startUrl,
+      resultLimit
+    });
 
-const exhibitors = await extractExhibitorsFromEvent({
-  eventId,
-  eventName,
-  startUrl,
-  resultLimit
-});
+    const exhibitors = extraction.exhibitors || [];
+    const eventScrapeCreditsUsed = extraction.creditsUsed || 0;
 
     if (!exhibitors.length) {
       await updateEventStatus(eventId, {
@@ -48,7 +49,14 @@ const exhibitors = await extractExhibitorsFromEvent({
         leadsLeadsFound: 0,
         leadsLastScrapped: new Date(),
         leadsResponseBodyStatus: "200",
-        leadsResponseBody: "No valid exhibitors found"
+        leadsResponseBody: JSON.stringify({
+          exhibitorsFound: 0,
+          source: "firecrawl",
+          leadsCreated: 0,
+          contactsProcessed: 0,
+          creditsUsed: 0,
+          creditsPerProcessedContact: 0
+        })
       });
 
       return res.status(200).json({
@@ -58,53 +66,74 @@ const exhibitors = await extractExhibitorsFromEvent({
         exhibitorsFound: 0,
         leadsCreated: 0,
         contactsProcessed: 0,
+        creditsUsed: 0,
+        creditsPerProcessedContact: 0,
         source: "firecrawl",
         message: "No valid exhibitors found."
       });
     }
 
+    await updateEventStatus(eventId, {
+      leadsScrappingStatus: `Creating leads (${exhibitors.length})...`
+    });
+
     const createdLeads = await createLeadRows(exhibitors);
 
     let enrichResults = [];
+    let enrichmentCreditsUsed = 0;
 
     if (enrichLimit > 0) {
-      enrichResults = await enrichLeadContacts({
-  leads: createdLeads,
-  eventName,
-  enrichLimit,
-  onProgress: async (current, total, companyName) => {
-    await updateEventStatus(eventId, {
-      leadsScrappingStatus: `Enriching ${current}/${total} - ${companyName}`
-    });
-  }
-});
+      const enrichment = await enrichLeadContacts({
+        leads: createdLeads,
+        eventName,
+        enrichLimit,
+        onProgress: async (current, total, companyName) => {
+          await updateEventStatus(eventId, {
+            leadsScrappingStatus: `Enriching contacts ${current}/${total} - ${companyName}`
+          });
+        }
+      });
+
+      enrichResults = enrichment.results || [];
+      enrichmentCreditsUsed = enrichment.totalCredits || 0;
 
       for (const result of enrichResults) {
-if (
-  result.success &&
-  result.contact &&
-  !result.contact.canceled &&
-  (
-    result.contact.personEmail ||
-    result.contact.companyEmail
-  )
-) {
-  await updateLeadContact(result.rowId, result.contact);
-}
+        if (
+          result.success &&
+          result.contact &&
+          !result.contact.canceled &&
+          (result.contact.personEmail || result.contact.companyEmail)
+        ) {
+          await updateLeadContact(result.rowId, result.contact);
+        }
       }
     }
+
+    const creditsPerProcessedContact =
+      enrichResults.length > 0
+        ? Number((enrichmentCreditsUsed / enrichResults.length).toFixed(2))
+        : 0;
+
+    const totalCreditsUsed =
+      eventScrapeCreditsUsed + enrichmentCreditsUsed;
+
+    const summary = {
+      exhibitorsFound: exhibitors.length,
+      source: "firecrawl",
+      leadsCreated: createdLeads.length,
+      contactsProcessed: enrichResults.length,
+      eventScrapeCreditsUsed,
+      enrichmentCreditsUsed,
+      totalCreditsUsed,
+      creditsPerProcessedContact
+    };
 
     await updateEventStatus(eventId, {
       leadsScrappingStatus: "Completed",
       leadsLeadsFound: createdLeads.length,
       leadsLastScrapped: new Date(),
       leadsResponseBodyStatus: "200",
-      leadsResponseBody: JSON.stringify({
-        exhibitorsFound: exhibitors.length,
-        source: "firecrawl",
-        leadsCreated: createdLeads.length,
-        contactsProcessed: enrichResults.length
-      })
+      leadsResponseBody: JSON.stringify(summary)
     });
 
     return res.status(200).json({
@@ -115,6 +144,10 @@ if (
       source: "firecrawl",
       leadsCreated: createdLeads.length,
       contactsProcessed: enrichResults.length,
+      eventScrapeCreditsUsed,
+      enrichmentCreditsUsed,
+      totalCreditsUsed,
+      creditsPerProcessedContact,
       enrichResults
     });
 
@@ -128,7 +161,7 @@ if (
         leadsResponseBodyStatus: "500",
         leadsResponseBody: error.message
       });
-    } catch {}
+    } catch { }
 
     return res.status(500).json({
       error: true,
