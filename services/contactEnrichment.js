@@ -72,13 +72,14 @@ for (let i = 0; i < leadsToEnrich.length; i += CONCURRENCY) {
     `STARTING BATCH ${i / CONCURRENCY + 1} (${batch.length} companies)`
   );
 
-const batchResults = await Promise.all(batch.map(processLead));
+  const batchResults = await Promise.all(batch.map(processLead));
 
-batchResults.forEach(result => {
+  batchResults.forEach(result => {
     totalCredits += result.creditsUsed || 0;
-});
+  });
 
-results.push(...batchResults);
+  results.push(...batchResults);
+}
 
 console.log(
   `ENRICHMENT FINISHED. Processed ${completed}/${leadsToEnrich.length}. Credits used: ${totalCredits}`
@@ -88,7 +89,7 @@ return {
   results,
   totalCredits
 };
-}
+
 
 async function findBestContact({ companyName, website, eventName }) {
   if (!FIRECRAWL_API_KEY) {
