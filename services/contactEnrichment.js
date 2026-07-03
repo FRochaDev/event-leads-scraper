@@ -17,61 +17,73 @@ export async function enrichLeadContacts({
   let completed = 0;
   let totalCredits = 0;
 
-  async function processLead(lead) {
-    try {
-      const result = await findBestContact({
-        companyName: lead.companyName,
-        website: lead.website,
-        eventName
-      });
+async function processLead(lead) {
+  console.log("START:", lead.companyName);
 
-      totalCredits += result.creditsUsed || 0;
-      completed++;
+  try {
+    const result = await findBestContact({
+      companyName: lead.companyName,
+      website: lead.website,
+      eventName
+    });
 
-      console.log(
-        `ENRICHMENT PROGRESS: ${completed}/${leadsToEnrich.length} - ${lead.companyName}`
-      );
+    totalCredits += result.creditsUsed || 0;
+    completed++;
 
-      if (onProgress) {
-        await onProgress(completed, leadsToEnrich.length, lead.companyName);
-      }
+    console.log("FINISHED:", lead.companyName);
+    console.log(
+      `ENRICHMENT PROGRESS: ${completed}/${leadsToEnrich.length} - ${lead.companyName}`
+    );
 
-      return {
-        rowId: lead.rowId,
-        companyName: lead.companyName,
-        success: true,
-        contact: result.contact,
-        creditsUsed: result.creditsUsed || 0
-      };
-    } catch (error) {
-      completed++;
-
-      console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
-
-      if (onProgress) {
-        await onProgress(completed, leadsToEnrich.length, lead.companyName);
-      }
-
-      return {
-        rowId: lead.rowId,
-        companyName: lead.companyName,
-        success: false,
-        error: error.message,
-        creditsUsed: 0
-      };
+    if (onProgress) {
+      await onProgress(completed, leadsToEnrich.length, lead.companyName);
     }
-  }
 
-  for (let i = 0; i < leadsToEnrich.length; i += CONCURRENCY) {
-    const batch = leadsToEnrich.slice(i, i + CONCURRENCY);
-    const batchResults = await Promise.all(batch.map(processLead));
-    results.push(...batchResults);
-  }
+    return {
+      rowId: lead.rowId,
+      companyName: lead.companyName,
+      success: true,
+      contact: result.contact,
+      creditsUsed: result.creditsUsed || 0
+    };
+  } catch (error) {
+    completed++;
 
-  return {
-    results,
-    totalCredits
-  };
+    console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
+
+    if (onProgress) {
+      await onProgress(completed, leadsToEnrich.length, lead.companyName);
+    }
+
+    return {
+      rowId: lead.rowId,
+      companyName: lead.companyName,
+      success: false,
+      error: error.message,
+      creditsUsed: 0
+    };
+  }
+}
+
+for (let i = 0; i < leadsToEnrich.length; i += CONCURRENCY) {
+  const batch = leadsToEnrich.slice(i, i + CONCURRENCY);
+
+  console.log(
+    `STARTING BATCH ${i / CONCURRENCY + 1} (${batch.length} companies)`
+  );
+
+  const batchResults = await Promise.all(batch.map(processLead));
+  results.push(...batchResults);
+}
+
+console.log(
+  `ENRICHMENT FINISHED. Processed ${completed}/${leadsToEnrich.length}. Credits used: ${totalCredits}`
+);
+
+return {
+  results,
+  totalCredits
+};
 }
 
 async function findBestContact({ companyName, website, eventName }) {
