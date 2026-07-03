@@ -72,9 +72,13 @@ for (let i = 0; i < leadsToEnrich.length; i += CONCURRENCY) {
     `STARTING BATCH ${i / CONCURRENCY + 1} (${batch.length} companies)`
   );
 
-  const batchResults = await Promise.all(batch.map(processLead));
-  results.push(...batchResults);
-}
+const batchResults = await Promise.all(batch.map(processLead));
+
+batchResults.forEach(result => {
+    totalCredits += result.creditsUsed || 0;
+});
+
+results.push(...batchResults);
 
 console.log(
   `ENRICHMENT FINISHED. Processed ${completed}/${leadsToEnrich.length}. Credits used: ${totalCredits}`
@@ -349,6 +353,50 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
     canceled: Boolean(contact.canceled)
   };
 
+  const first = normalized.contactFirstName.trim().toLowerCase();
+const last = normalized.contactLastName.trim().toLowerCase();
+const invalidNames = [
+  "john",
+  "jane",
+  "doe",
+  "test",
+  "tester",
+  "admin",
+  "unknown",
+  "n/a",
+  "na",
+  "-"
+];
+
+const invalidRoles = [
+  "n/a",
+  "na",
+  "unknown",
+  "test",
+  "tester",
+  "admin"
+];
+
+if (
+  invalidRoles.includes(
+    normalized.contactRole.trim().toLowerCase()
+  )
+) {
+  normalized.contactRole = "";
+}
+
+if (
+    (first === "john" && last === "doe") ||
+    (first === "jane" && last === "doe") ||
+    invalidNames.includes(first) ||
+    invalidNames.includes(last)
+) {
+  normalized.contactFirstName = "";
+  normalized.contactLastName = "";
+  normalized.contactRole = "";
+  normalized.personEmail = "";
+  normalized.confidence = 0;
+}
   if (
     normalized.personEmail &&
     !emailMatchesCompanyDomain(normalized.personEmail, websiteDomain)
@@ -378,6 +426,10 @@ function normalizeAndValidateContact(contact, website, sourceUrl) {
     normalized.canceled = true;
     normalized.confidence = 0;
   }
+
+normalized.contactFirstName = normalized.contactFirstName.trim();
+normalized.contactLastName = normalized.contactLastName.trim();
+normalized.contactRole = normalized.contactRole.trim();
 
   return normalized;
 }
