@@ -69,10 +69,15 @@ const exhibitors = await extractExhibitorsFromEvent({
 
     if (enrichLimit > 0) {
       enrichResults = await enrichLeadContacts({
-        leads: createdLeads,
-        eventName,
-        enrichLimit
-      });
+  leads: createdLeads,
+  eventName,
+  enrichLimit,
+  onProgress: async (current, total, companyName) => {
+    await updateEventStatus(eventId, {
+      leadsScrappingStatus: `Enriching ${current}/${total} - ${companyName}`
+    });
+  }
+});
 
       for (const result of enrichResults) {
 if (

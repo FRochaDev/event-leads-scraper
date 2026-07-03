@@ -9,33 +9,43 @@ export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
 
   const results = [];
 
-  for (const lead of leadsToEnrich) {
-    try {
-      const contact = await findBestContact({
-        companyName: lead.companyName,
-        website: lead.website,
-        eventName
-      });
+for (let i = 0; i < leadsToEnrich.length; i++) {
+  const lead = leadsToEnrich[i];
 
-      results.push({
-        rowId: lead.rowId,
-        companyName: lead.companyName,
-        success: true,
-        contact
-      });
-    } catch (error) {
-      console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
+  console.log(
+    `ENRICHMENT PROGRESS: ${i + 1}/${leadsToEnrich.length} - ${lead.companyName}`
+  );
 
-      results.push({
-        rowId: lead.rowId,
-        companyName: lead.companyName,
-        success: false,
-        error: error.message
-      });
-    }
+  try {
+    const contact = await findBestContact({
+      companyName: lead.companyName,
+      website: lead.website,
+      eventName
+    });
+
+    results.push({
+      rowId: lead.rowId,
+      companyName: lead.companyName,
+      success: true,
+      contact
+    });
+  } catch (error) {
+    console.log("CONTACT ENRICH ERROR:", lead.companyName, error.message);
+
+    results.push({
+      rowId: lead.rowId,
+      companyName: lead.companyName,
+      success: false,
+      error: error.message
+    });
   }
+}
 
-  return results;
+return results;
+}
+
+if (onProgress) {
+  await onProgress(i + 1, leadsToEnrich.length, lead.companyName);
 }
 
 async function findBestContact({ companyName, website, eventName }) {
