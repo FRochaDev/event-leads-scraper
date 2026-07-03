@@ -2,10 +2,12 @@ import { buildContactPrompt } from "../prompts/contactExtractionPrompt.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
-export async function enrichLeadContacts({ leads, eventName, enrichLimit }) {
-  const leadsToEnrich = leads
-    .filter(lead => lead.website)
-    .slice(0, enrichLimit);
+export async function enrichLeadContacts({
+  leads,
+  eventName,
+  enrichLimit,
+  onProgress
+}) {
 
   const results = [];
 
@@ -15,6 +17,10 @@ for (let i = 0; i < leadsToEnrich.length; i++) {
   console.log(
     `ENRICHMENT PROGRESS: ${i + 1}/${leadsToEnrich.length} - ${lead.companyName}`
   );
+
+  if (onProgress) {
+    await onProgress(i + 1, leadsToEnrich.length, lead.companyName);
+  }
 
   try {
     const contact = await findBestContact({
@@ -42,10 +48,6 @@ for (let i = 0; i < leadsToEnrich.length; i++) {
 }
 
 return results;
-}
-
-if (onProgress) {
-  await onProgress(i + 1, leadsToEnrich.length, lead.companyName);
 }
 
 async function findBestContact({ companyName, website, eventName }) {
@@ -357,6 +359,7 @@ function emptyContact() {
     personEmail: "",
     companyEmail: "",
     contactRole: "",
+    country: "",
     sourceUrl: "",
     confidence: 0,
     canceled: true
