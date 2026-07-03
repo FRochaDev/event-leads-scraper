@@ -8,6 +8,9 @@ export async function enrichLeadContacts({
   enrichLimit,
   onProgress
 }) {
+  const leadsToEnrich = leads
+    .filter(lead => lead.website)
+    .slice(0, enrichLimit);
 
   const results = [];
 
