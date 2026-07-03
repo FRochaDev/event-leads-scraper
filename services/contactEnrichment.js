@@ -474,4 +474,4 @@ function emptyContact() {
     confidence: 0,
     canceled: true
   };
-}
+}}
