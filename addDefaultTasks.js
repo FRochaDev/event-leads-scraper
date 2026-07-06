@@ -83,11 +83,9 @@ export async function addDefaultTasks(req, res) {
       });
     }
 
-    const defaultItems = await defaultWorkSheetItemTable.get();
-
-    const matchingDefaultItems = defaultItems.filter(
-      item => item.workTypeId === workTypeID
-    );
+const matchingDefaultItems = await defaultWorkSheetItemTable.get(q =>
+  q.where("workTypeId", "=", workTypeID).limit(100)
+);
 
     if (matchingDefaultItems.length === 0) {
       return res.status(404).json({
@@ -99,13 +97,14 @@ export async function addDefaultTasks(req, res) {
     }
 
     if (!force) {
-      const existingItems = await workSheetItemsTable.get();
+const existingItems = await workSheetItemsTable.get(q =>
+  q
+    .where("projectId", "=", projectID)
+    .where("templateWorkTypeId", "=", workTypeID)
+    .limit(1)
+);
 
-      const alreadyCreated = existingItems.some(
-        item =>
-          item.projectId === projectID &&
-          item.templateWorkTypeId === workTypeID
-      );
+const alreadyCreated = existingItems.length > 0;
 
       if (alreadyCreated) {
         return res.status(409).json({
