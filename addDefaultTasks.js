@@ -68,7 +68,10 @@ export async function addDefaultTasks(req, res) {
           required: ["projectID", "workTypeID", "workStatusID"],
         });
     }
+    console.log("Antes do get()");
     const defaultItems = await defaultWorkSheetItemTable.get();
+    console.log("Depois do get()");
+console.log("Linhas:", defaultItems.length);
     const matchingDefaultItems = defaultItems.filter(
       (item) => item.workTypeId === workTypeID,
     );
