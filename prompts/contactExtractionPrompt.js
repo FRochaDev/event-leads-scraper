@@ -1,6 +1,6 @@
 export function buildContactPrompt({ companyName, website, eventName }) {
   return `
-You are extracting contact information for B2B prospecting.
+You are extracting B2B prospecting contacts.
 
 Company:
 ${companyName}
@@ -12,65 +12,67 @@ Event:
 ${eventName}
 
 Goal:
-Find the best professional contact for exhibition stand design, trade shows, events, marketing, partnerships or business development.
+Extract up to 5 relevant business contacts for trade shows, exhibitions, events, partnerships, sales and marketing.
 
-First, identify the best relevant person.
-Only after that, extract emails.
+Do NOT choose the best contact.
+Simply extract every suitable candidate you can confidently identify.
 
-Preferred person roles:
+Preferred roles:
+
 1. Event Manager
 2. Exhibition Manager
 3. Trade Show Manager
-4. Marketing Manager
-5. Brand Manager
-6. Partnerships Manager
-7. Business Development Manager
-8. Head of Marketing
-9. Marketing Director
-10. CMO
-11. CEO or Founder only if no better contact exists.
+4. Events Coordinator
+5. Marketing Manager
+6. Field Marketing Manager
+7. Marketing Coordinator
+8. Partnerships Manager
+9. Business Development Manager
+10. Sales Manager
+11. Regional Sales Manager
+12. Brand Manager
+13. Founder
 
-Email fields:
+Avoid executive contacts whenever possible:
 
-personEmail:
-- Individual business email of the identified person.
-- Example: john.smith@company.com
-- Must belong to the company domain.
-- Never invent or infer.
-- Do not place individual emails in companyEmail.
+- CEO
+- CMO
+- CFO
+- CTO
+- COO
+- VP
+- Vice President
+- President
+- Managing Director
+- Board Member
 
-companyEmail:
-- Generic/shared company email.
-- Only use as fallback if no personEmail is visible.
-- Do not stop searching just because a generic email exists.
-- If a relevant person is visible but no personal email is visible, still return the person's name and role, and put the generic email in companyEmail.
-- Prefer: marketing@, events@, partnerships@, business@, sales@, info@, contact@
-- Must belong to the company domain.
+For EACH contact return:
 
-Country:
-- Return the company's country if confidently determined.
-- Leave country blank if uncertain.
+- firstName
+- lastName
+- email
+- role
+- sourceUrl
+- confidence
 
 Rules:
-- Prefer information from the company's own website.
-- If needed, use another trustworthy public source.
-- Do not use emails from event organisers, media companies or third parties.
-- If no suitable person is found, leave contactFirstName, contactLastName, contactRole and personEmail blank.
-- If no email is found, leave both email fields blank.
-- Return JSON only.
 
-Schema:
-{
-  "company": "",
-  "contactFirstName": "",
-  "contactLastName": "",
-  "personEmail": "",
-  "companyEmail": "",
-  "contactRole": "",
-  "country": "",
-  "sourceUrl": "",
-  "confidence": 0,
-  "canceled": false
-}
+- Prefer information published on the company's own website.
+- If necessary, use another trustworthy public source.
+- Never invent names.
+- Never invent email addresses.
+- Email must belong to the company domain.
+- Ignore LinkedIn profile URLs.
+- Ignore event organisers.
+- Ignore media websites.
+- Ignore placeholder contacts (John Doe, Jane Doe, Unknown, Admin, Test User).
+- Return a maximum of 5 contacts.
+
+Also return:
+
+- company
+- country
+
+Return JSON only.
 `;
 }

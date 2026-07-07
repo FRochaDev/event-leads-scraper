@@ -1,7 +1,7 @@
 import { buildContactPrompt } from "../prompts/contactExtractionPrompt.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
-const CONCURRENCY = 3;
+const CONCURRENCY = 10;
 
 export async function enrichLeadContacts({
   leads,
@@ -118,7 +118,7 @@ async function findBestContact({ companyName, website, eventName }) {
   });
 
   const contact = normalizeAndValidateContact(
-    contactResult.contact,
+    contactResult.extracted,
     homeUrl,
     bestUrl
   );
@@ -201,7 +201,7 @@ async function scrapeContactFromUrl({ url, companyName, website, eventName }) {
   }
 
   return {
-    contact: data.data?.json || data.json || null,
+    extracted: data.data?.json || data.json || null,
     creditsUsed: data.data?.metadata?.creditsUsed || 0
   };
 }
@@ -321,118 +321,186 @@ function contactSchema() {
     type: "object",
     properties: {
       company: { type: "string" },
-      contactFirstName: { type: "string" },
-      contactLastName: { type: "string" },
-      personEmail: { type: "string" },
-      companyEmail: { type: "string" },
-      contactRole: { type: "string" },
       country: { type: "string" },
-      sourceUrl: { type: "string" },
-      confidence: { type: "number" },
-      canceled: { type: "boolean" }
+      contacts: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            firstName: { type: "string" },
+            lastName: { type: "string" },
+            email: { type: "string" },
+            role: { type: "string" },
+            sourceUrl: { type: "string" },
+            confidence: { type: "number" }
+          }
+        }
+      }
     },
-    required: ["canceled"]
+    required: ["contacts"]
   };
 }
 
-function normalizeAndValidateContact(contact, website, sourceUrl) {
-  if (!contact) {
+function normalizeAndValidateContact(extracted, website, sourceUrl) {
+  if (!extracted) {
     return emptyContact();
   }
 
   const websiteDomain = getDomain(website);
+  const contacts = Array.isArray(extracted.contacts)
+    ? extracted.contacts
+    : [];
 
-  const normalized = {
-    contactFirstName: contact.contactFirstName || "",
-    contactLastName: contact.contactLastName || "",
-    personEmail: contact.personEmail || "",
-    companyEmail: contact.companyEmail || "",
-    contactRole: contact.contactRole || "",
-    country: contact.country || "",
-    sourceUrl: contact.sourceUrl || sourceUrl || "",
-    confidence: Number(contact.confidence || 0),
-    canceled: Boolean(contact.canceled)
-  };
+  const country = extracted.country || "";
 
-  const first = normalized.contactFirstName.trim().toLowerCase();
-const last = normalized.contactLastName.trim().toLowerCase();
-const invalidNames = [
-  "john",
-  "jane",
-  "doe",
-  "test",
-  "tester",
-  "admin",
-  "unknown",
-  "n/a",
-  "na",
-  "-"
-];
+  if (!contacts.length) {
+    const empty = emptyContact();
+    empty.country = country;
+    return empty;
+  }
 
-const invalidRoles = [
-  "n/a",
-  "na",
-  "unknown",
-  "test",
-  "tester",
-  "admin"
-];
+  const candidates = contacts.map(candidate => {
+    const normalized = {
+      contactFirstName: candidate.firstName || "",
+      contactLastName: candidate.lastName || "",
+      personEmail: candidate.email || "",
+      companyEmail: "",
+      contactRole: candidate.role || "",
+      country,
+      sourceUrl: candidate.sourceUrl || sourceUrl || "",
+      confidence: Number(candidate.confidence || 0),
+      canceled: false
+    };
 
-if (
-  invalidRoles.includes(
-    normalized.contactRole.trim().toLowerCase()
-  )
-) {
-  normalized.contactRole = "";
+    return cleanCandidate(normalized, websiteDomain);
+  });
+
+  const validCandidates = candidates.filter(candidate =>
+    candidate.personEmail ||
+    candidate.contactFirstName ||
+    candidate.contactLastName ||
+    candidate.contactRole
+  );
+
+  if (!validCandidates.length) {
+    const empty = emptyContact();
+    empty.country = country;
+    return empty;
+  }
+
+  validCandidates.sort((a, b) => scoreContact(b) - scoreContact(a));
+
+  const best = validCandidates[0];
+
+  if (!best.personEmail) {
+    best.companyEmail = findBestCompanyEmail(contacts, websiteDomain);
+  }
+
+  if (!best.personEmail && !best.companyEmail) {
+    best.canceled = true;
+    best.confidence = 0;
+  }
+
+  return best;
 }
 
-if (
+function cleanCandidate(candidate, websiteDomain) {
+  candidate.contactFirstName = candidate.contactFirstName.trim();
+  candidate.contactLastName = candidate.contactLastName.trim();
+  candidate.contactRole = candidate.contactRole.trim();
+  candidate.personEmail = candidate.personEmail.trim().toLowerCase();
+
+  const first = candidate.contactFirstName.toLowerCase();
+  const last = candidate.contactLastName.toLowerCase();
+
+  const invalidNames = ["john", "jane", "doe", "test", "tester", "admin", "unknown", "n/a", "na", "-"];
+
+  if (
     (first === "john" && last === "doe") ||
     (first === "jane" && last === "doe") ||
     invalidNames.includes(first) ||
     invalidNames.includes(last)
-) {
-  normalized.contactFirstName = "";
-  normalized.contactLastName = "";
-  normalized.contactRole = "";
-  normalized.personEmail = "";
-  normalized.confidence = 0;
+  ) {
+    candidate.contactFirstName = "";
+    candidate.contactLastName = "";
+    candidate.contactRole = "";
+    candidate.personEmail = "";
+    candidate.confidence = 0;
+  }
+
+  if (
+    candidate.personEmail &&
+    !emailMatchesCompanyDomain(candidate.personEmail, websiteDomain)
+  ) {
+    candidate.personEmail = "";
+  }
+
+  return candidate;
 }
-  if (
-    normalized.personEmail &&
-    !emailMatchesCompanyDomain(normalized.personEmail, websiteDomain)
-  ) {
-    normalized.personEmail = "";
-  }
 
-  if (
-    normalized.companyEmail &&
-    !emailMatchesCompanyDomain(normalized.companyEmail, websiteDomain)
-  ) {
-    normalized.companyEmail = "";
-  }
+function scoreContact(contact) {
+  const role = contact.contactRole.toLowerCase();
 
-  if (
-    normalized.companyEmail &&
-    !isGenericEmail(normalized.companyEmail)
-  ) {
-    normalized.companyEmail = "";
-  }
+  let score = 0;
 
-  if (normalized.personEmail && normalized.companyEmail) {
-    normalized.companyEmail = "";
-  }
+  if (contact.personEmail) score += 60;
 
-  if (!normalized.personEmail && !normalized.companyEmail) {
-    normalized.canceled = true;
-    normalized.confidence = 0;
-  }
+  if (role.includes("event")) score += 50;
+  if (role.includes("exhibition")) score += 50;
+  if (role.includes("trade show")) score += 50;
+  if (role.includes("marketing manager")) score += 45;
+  if (role.includes("field marketing")) score += 45;
+  if (role.includes("partnership")) score += 40;
+  if (role.includes("business development")) score += 40;
+  if (role.includes("sales manager")) score += 35;
+  if (role.includes("regional sales")) score += 35;
+  if (role.includes("coordinator")) score += 30;
+  if (role.includes("brand")) score += 25;
+  if (role.includes("founder")) score += 15;
 
-normalized.contactFirstName = normalized.contactFirstName.trim();
-normalized.contactLastName = normalized.contactLastName.trim();
-normalized.contactRole = normalized.contactRole.trim();
+  if (role.includes("ceo")) score -= 80;
+  if (role.includes("cmo")) score -= 60;
+  if (role.includes("cto")) score -= 80;
+  if (role.includes("cfo")) score -= 80;
+  if (role.includes("vp")) score -= 60;
+  if (role.includes("vice president")) score -= 60;
+  if (role.includes("president")) score -= 60;
+  if (role.includes("board")) score -= 80;
 
-  return normalized;
+  score += Number(contact.confidence || 0);
+
+  return score;
+}
+
+function findBestCompanyEmail(contacts, websiteDomain) {
+  const emails = contacts
+    .map(contact => contact.email || "")
+    .filter(Boolean)
+    .map(email => email.trim().toLowerCase())
+    .filter(email => emailMatchesCompanyDomain(email, websiteDomain))
+    .filter(email => isGenericEmail(email));
+
+  const priority = [
+    "events",
+    "marketing",
+    "partnerships",
+    "business",
+    "sales",
+    "info",
+    "contact",
+    "hello",
+    "office"
+  ];
+
+  return emails.sort((a, b) => {
+    const aLocal = a.split("@")[0];
+    const bLocal = b.split("@")[0];
+
+    const aScore = priority.indexOf(aLocal);
+    const bScore = priority.indexOf(bLocal);
+
+    return (aScore === -1 ? 999 : aScore) - (bScore === -1 ? 999 : bScore);
+  })[0] || "";
 }
 
 function emailMatchesCompanyDomain(email, websiteDomain) {
