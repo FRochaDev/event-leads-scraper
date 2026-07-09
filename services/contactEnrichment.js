@@ -1,4 +1,5 @@
 import { buildContactPrompt } from "../prompts/contactExtractionPrompt.js";
+import { extractContactsWithClaude } from "./claudeContactExtraction.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const CONCURRENCY = 10;
@@ -110,12 +111,15 @@ async function findBestContact({ companyName, website, eventName }) {
 
   console.log("BEST CONTACT URL:", companyName, bestUrl);
 
-const contactResult = await scrapeContactFromUrl({
-  url: bestUrl,
+const contactResult = await extractContactsWithClaude({
   companyName,
   website: homeUrl,
-  eventName
+  eventName,
+  sourceUrl: bestUrl,
+  markdown: contactResult.markdown
 });
+
+
 
 console.log(
   "CONTACT MARKDOWN SAMPLE:",
