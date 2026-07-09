@@ -90,6 +90,7 @@ return {
   totalCredits
 };
 
+}
 
 async function findBestContact({ companyName, website, eventName }) {
   if (!FIRECRAWL_API_KEY) {
@@ -106,40 +107,49 @@ async function findBestContact({ companyName, website, eventName }) {
   }
 
   const homepage = await scrapeHomepageForLinks(homeUrl);
-  const bestUrl = chooseBestContactUrl(homepage.links, homeUrl);
+  const bestUrls = chooseBestContactUrls(homepage.links, homeUrl);
 
-  console.log("BEST CONTACT URL:", companyName, bestUrl);
+  console.log("BEST CONTACT URLS:", companyName, bestUrls);
 
-  const contactResult = await scrapeContactFromUrl({
-    url: bestUrl,
-    companyName,
-    website: homeUrl,
-    eventName
-  });
+  let combinedMarkdown = "";
+  let creditsUsed = homepage.creditsUsed || 0;
+
+  for (const url of bestUrls) {
+    const result = await scrapeContactFromUrl({
+      url,
+      companyName,
+      website: homeUrl,
+      eventName
+    });
+
+    combinedMarkdown += `\n\n====================\nSOURCE: ${url}\n\n`;
+    combinedMarkdown += result.markdown || "";
+
+    creditsUsed += result.creditsUsed || 0;
+  }
 
   console.log(
     "CONTACT MARKDOWN SAMPLE:",
-    contactResult.markdown.slice(0, 1000)
+    combinedMarkdown.slice(0, 1000)
   );
 
-const extracted = await extractContactsWithClaude({
-  companyName,
-  website: homeUrl,
-  eventName,
-  sourceUrl: bestUrl,
-  markdown: contactResult.markdown
-});
-const contact = normalizeAndValidateContact(
-  extracted,
-  homeUrl,
-  bestUrl
-);
+  const extracted = await extractContactsWithClaude({
+    companyName,
+    website: homeUrl,
+    eventName,
+    sourceUrl: bestUrls[0] || homeUrl,
+    markdown: combinedMarkdown
+  });
+
+  const contact = normalizeAndValidateContact(
+    extracted,
+    homeUrl,
+    bestUrls[0] || homeUrl
+  );
 
   return {
     contact,
-    creditsUsed:
-      (homepage.creditsUsed || 0) +
-      (contactResult.creditsUsed || 0)
+    creditsUsed
   };
 }
 
@@ -208,7 +218,7 @@ return {
 };
 }
 
-function chooseBestContactUrl(links, homeUrl) {
+function chooseBestContactUrls(links, homeUrl) {
   const normalizedLinks = Array.isArray(links)
     ? links
         .map(link => normalizeLink(link, homeUrl))
@@ -224,7 +234,13 @@ function chooseBestContactUrl(links, homeUrl) {
     .filter(item => item.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  return scored[0]?.url || homeUrl;
+  const MAX_CONTACT_PAGES = 3;
+
+  const best = scored
+    .slice(0, MAX_CONTACT_PAGES)
+    .map(item => item.url);
+
+  return best.length ? best : [homeUrl];
 }
 
 function scoreUrl(url) {
@@ -556,4 +572,4 @@ function emptyContact() {
     confidence: 0,
     canceled: true
   };
-}}
+}
