@@ -12,6 +12,7 @@ export function buildClaudeContactPrompt({
 You extract B2B prospecting contacts from webpage markdown.
 
 Use ONLY the markdown provided.
+Use ONLY the extracted email list provided.
 Do not use outside knowledge.
 Do not invent names, roles, emails or URLs.
 
@@ -28,11 +29,17 @@ Source URL:
 ${sourceUrl}
 
 Task:
-1. Read the markdown and identify every person, role and company email explicitly mentioned.
-2. From those explicit mentions only, select the best contacts for someone selling exhibition stands, trade show services, event services or B2B partnerships.
-3. Return ONLY the final selected contacts as JSON.
 
-Preferred roles:
+1. Read the markdown and identify every person, role and company email explicitly mentioned.
+
+2. Match the extracted emails to the people mentioned whenever possible.
+
+3. Select the SINGLE BEST contact for someone selling exhibition stands, trade show services, event services or B2B partnerships.
+
+Return ONLY that single contact.
+
+Preferred roles (highest priority):
+
 - Event Manager
 - Exhibition Manager
 - Trade Show Manager
@@ -43,13 +50,15 @@ Preferred roles:
 - Marketing Coordinator
 - Brand Manager
 - Partnerships Manager
+- Commercial Partnerships
 - Business Development Manager
 - Sales Manager
 - Regional Sales Manager
 - Commercial Manager
 - Operations Manager
 
-Avoid these roles:
+Avoid these roles whenever possible:
+
 - CEO
 - CFO
 - CTO
@@ -63,6 +72,8 @@ Avoid these roles:
 - Executive Director
 - Board Member
 - Chairman
+- Founder
+- Co-Founder
 - Press Officer
 - PR Manager
 - Communications Manager
@@ -73,35 +84,40 @@ Avoid these roles:
 - Content Manager
 
 Rules:
+
 - Extract only people, roles and emails explicitly visible in the markdown.
 - Return only people who currently work for the company.
 - If a suitable non-executive contact exists, never return executives.
 - If only executives are visible, return an empty contacts array.
-- If a real person is visible but no email is visible, return the person with email blank.
-- If only generic company emails are visible, return them with blank names.
+- Match people only with emails present in the extracted email list.
+- Never invent an email.
+- Never infer an email pattern.
+- Never return an email that is not in the extracted email list.
+- If a real person is visible but no matching email exists, return the person with email blank.
+- If no suitable person can be matched but a department email exists, return the best department email with blank firstName and lastName.
+- Prefer department emails such as:
+  - events@
+  - marketing@
+  - partnerships@
+  - commercial@
+  - business@
+  - sales@
+- Use info@ or contact@ only as a last resort.
 - Email must belong to the company's own domain.
 - Ignore event organisers, media companies and unrelated third parties.
-- Return a maximum of 5 contacts.
+- Return exactly ONE contact.
 - If nothing relevant is found, return an empty contacts array.
 
-Emails extracted by regex from the markdown:
-${extractedEmails}
+Emails extracted by regex:
 
-Email selection rules:
-- Use the email list above as the trusted list of emails found in the markdown.
-- Prefer a personal company email if it can be matched to a relevant person in the markdown.
-- Prefer emails linked to events, marketing, sales, partnerships, commercial or business development roles.
-- If no personal email can be matched to a relevant person, choose the best department email.
-- Prefer department emails such as events@, marketing@, partnerships@, commercial@, business@ or sales@.
-- Use info@ or contact@ only as fallback.
-- Never invent an email.
-- Never return an email that is not in the extracted email list.
+${extractedEmails}
 
 Return raw JSON only.
 Do not wrap the response in markdown.
 Do not use markdown code fences.
 
 Schema:
+
 {
   "company": "",
   "country": "",
@@ -118,6 +134,7 @@ Schema:
 }
 
 Markdown:
+
 ${safeMarkdown}
 `;
 }
