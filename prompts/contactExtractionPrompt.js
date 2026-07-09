@@ -14,12 +14,86 @@ Use ONLY the markdown provided.
 Do not use outside knowledge.
 Do not invent names, roles, emails or URLs.
 
-Company: ${companyName}
-Website: ${website}
-Event: ${eventName}
-Source URL: ${sourceUrl}
+Company:
+${companyName}
 
-Return JSON only with this schema:
+Website:
+${website}
+
+Event:
+${eventName}
+
+Source URL:
+${sourceUrl}
+
+Task:
+
+Step 1:
+Read the markdown and identify every person, role and company email explicitly mentioned.
+
+Step 2:
+From those explicit mentions only, select the people who would be the best contacts for someone selling exhibition stands, trade show services, event services or B2B partnerships.
+
+Step 3:
+Return ONLY the final selected contacts as JSON.
+
+Do not include your reasoning.
+Do not include the intermediate list.
+
+Preferred roles (highest priority):
+
+- Event Manager
+- Exhibition Manager
+- Trade Show Manager
+- Events Coordinator
+- Marketing Manager
+- Marketing Director
+- Field Marketing Manager
+- Marketing Coordinator
+- Brand Manager
+- Partnerships Manager
+- Business Development Manager
+- Sales Manager
+- Regional Sales Manager
+- Commercial Manager
+- Operations Manager
+
+Avoid these roles whenever possible:
+
+- CEO
+- CFO
+- CTO
+- COO
+- CMO
+- CIO
+- CCO
+- President
+- Vice President
+- Founder
+- Co-Founder
+- Managing Director
+- Executive Director
+- Board Member
+- Chairman
+
+Rules:
+
+- Extract only people, roles and emails explicitly visible in the markdown.
+- Return only people who currently work for the company.
+- If a suitable non-executive contact exists, never return executives.
+- If only executives are visible, return an empty contacts array.
+- If a real person is visible but no email is visible, return the person with email blank.
+- If only generic company emails are visible, return them with blank names.
+- Email must belong to the company's own domain.
+- Ignore event organisers, media companies and unrelated third parties.
+- Return a maximum of 5 contacts.
+- If nothing relevant is found, return an empty contacts array.
+
+Return raw JSON only.
+Do not wrap the response in markdown.
+Do not use markdown code fences.
+
+Schema:
 
 {
   "company": "",
@@ -36,25 +110,8 @@ Return JSON only with this schema:
   ]
 }
 
-Rules:
-- Extract only relevant non-executive people or emails explicitly visible in the markdown.
-- Do not return C-level or board-level contacts.
-- Exclude CEO, CFO, CTO, COO, CMO, CIO, CCO, President, Vice President, VP, Founder, Co-Founder, Board Member, Managing Director, Executive Director and Chairman.
-- If a page only contains C-level or board-level people, return contacts as an empty array.
-- Prefer operational/commercial roles such as Event Manager, Events Coordinator, Marketing Manager, Marketing Director, Sales Manager, Business Development Manager, Partnerships Manager, Channel Manager, Operations Manager, Commercial Manager or similar.
-- Do not return leadership profiles unless the person has a clearly relevant non-C-level role.
-- If a real person is visible but no email is visible, return the person with email blank.
-- If only a generic company email is visible, return it with firstName and lastName blank.
-- Email must belong to the company domain.
-- Ignore event organisers, media companies and unrelated third parties.
-- Return maximum 5 contacts.
-- If nothing relevant is visible, return contacts as an empty array.
-
-Return raw JSON only.
-Do not wrap the JSON in markdown.
-Never surround the response with markdown code fences.
-
 Markdown:
+
 ${safeMarkdown}
 `;
 }
