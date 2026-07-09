@@ -37,7 +37,12 @@ Return JSON only with this schema:
 }
 
 Rules:
-- Extract only people or emails explicitly visible in the markdown.
+- Extract only relevant non-executive people or emails explicitly visible in the markdown.
+- Do not return C-level or board-level contacts.
+- Exclude CEO, CFO, CTO, COO, CMO, CIO, CCO, President, Vice President, VP, Founder, Co-Founder, Board Member, Managing Director, Executive Director and Chairman.
+- If a page only contains C-level or board-level people, return contacts as an empty array.
+- Prefer operational/commercial roles such as Event Manager, Events Coordinator, Marketing Manager, Marketing Director, Sales Manager, Business Development Manager, Partnerships Manager, Channel Manager, Operations Manager, Commercial Manager or similar.
+- Do not return leadership profiles unless the person has a clearly relevant non-C-level role.
 - If a real person is visible but no email is visible, return the person with email blank.
 - If only a generic company email is visible, return it with firstName and lastName blank.
 - Email must belong to the company domain.
