@@ -69,12 +69,18 @@ Avoid these roles whenever possible:
 - CCO
 - President
 - Vice President
-- Founder
-- Co-Founder
 - Managing Director
 - Executive Director
 - Board Member
 - Chairman
+- Press Officer
+- PR Manager
+- Communications Manager
+Media Relations
+- Public Relations
+- Journalist
+- Editor
+- Content Manager
 
 Rules:
 

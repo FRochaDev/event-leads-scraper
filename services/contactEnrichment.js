@@ -495,6 +495,13 @@ function scoreContact(contact) {
   if (role.includes("vice president")) score -= 60;
   if (role.includes("president")) score -= 60;
   if (role.includes("board")) score -= 80;
+  if (role.includes("press")) score -= 70;
+  if (role.includes("pr ")) score -= 70;
+  if (role.includes("public relations")) score -= 70;
+  if (role.includes("communications")) score -= 60;
+  if (role.includes("media relations")) score -= 70;
+  if (role.includes("journalist")) score -= 90;
+  if (role.includes("editor")) score -= 80;
 
   score += Number(contact.confidence || 0);
 
