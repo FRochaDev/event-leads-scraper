@@ -7,18 +7,25 @@ export async function extractContactsWithClaude({
   website,
   eventName,
   sourceUrl,
-  markdown
+  markdown,
+  extractedEmails = []
 }) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("Missing ANTHROPIC_API_KEY");
   }
+
+const emailsSection =
+  extractedEmails.length > 0
+    ? extractedEmails.map(email => `- ${email}`).join("\n")
+    : "None";
 
 const prompt = buildClaudeContactPrompt({
   companyName,
   website,
   eventName,
   sourceUrl,
-  markdown
+  markdown,
+  extractedEmails: emailsSection
 });
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {

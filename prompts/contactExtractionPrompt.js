@@ -3,7 +3,8 @@ export function buildClaudeContactPrompt({
   website,
   eventName,
   sourceUrl,
-  markdown
+  markdown,
+  extractedEmails = "None"
 }) {
   const safeMarkdown = (markdown || "").slice(0, 25000);
 
@@ -27,21 +28,11 @@ Source URL:
 ${sourceUrl}
 
 Task:
+1. Read the markdown and identify every person, role and company email explicitly mentioned.
+2. From those explicit mentions only, select the best contacts for someone selling exhibition stands, trade show services, event services or B2B partnerships.
+3. Return ONLY the final selected contacts as JSON.
 
-Step 1:
-Read the markdown and identify every person, role and company email explicitly mentioned.
-
-Step 2:
-From those explicit mentions only, select the people who would be the best contacts for someone selling exhibition stands, trade show services, event services or B2B partnerships.
-
-Step 3:
-Return ONLY the final selected contacts as JSON.
-
-Do not include your reasoning.
-Do not include the intermediate list.
-
-Preferred roles (highest priority):
-
+Preferred roles:
 - Event Manager
 - Exhibition Manager
 - Trade Show Manager
@@ -58,8 +49,7 @@ Preferred roles (highest priority):
 - Commercial Manager
 - Operations Manager
 
-Avoid these roles whenever possible:
-
+Avoid these roles:
 - CEO
 - CFO
 - CTO
@@ -76,14 +66,13 @@ Avoid these roles whenever possible:
 - Press Officer
 - PR Manager
 - Communications Manager
-Media Relations
+- Media Relations
 - Public Relations
 - Journalist
 - Editor
 - Content Manager
 
 Rules:
-
 - Extract only people, roles and emails explicitly visible in the markdown.
 - Return only people who currently work for the company.
 - If a suitable non-executive contact exists, never return executives.
@@ -95,12 +84,24 @@ Rules:
 - Return a maximum of 5 contacts.
 - If nothing relevant is found, return an empty contacts array.
 
+Emails extracted by regex from the markdown:
+${extractedEmails}
+
+Email selection rules:
+- Use the email list above as the trusted list of emails found in the markdown.
+- Prefer a personal company email if it can be matched to a relevant person in the markdown.
+- Prefer emails linked to events, marketing, sales, partnerships, commercial or business development roles.
+- If no personal email can be matched to a relevant person, choose the best department email.
+- Prefer department emails such as events@, marketing@, partnerships@, commercial@, business@ or sales@.
+- Use info@ or contact@ only as fallback.
+- Never invent an email.
+- Never return an email that is not in the extracted email list.
+
 Return raw JSON only.
 Do not wrap the response in markdown.
 Do not use markdown code fences.
 
 Schema:
-
 {
   "company": "",
   "country": "",
@@ -117,7 +118,6 @@ Schema:
 }
 
 Markdown:
-
 ${safeMarkdown}
 `;
 }

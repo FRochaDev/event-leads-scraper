@@ -1,6 +1,6 @@
 import { buildClaudeContactPrompt } from "../prompts/contactExtractionPrompt.js";
 import { extractContactsWithClaude } from "./claudeContactExtraction.js";
-import { extractEmails } from "./emailExtractor.js";
+import { extractEmails, rankEmails } from "./emailExtractor.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const CONCURRENCY = 10;
@@ -139,13 +139,17 @@ const extractedEmails = extractEmails(
 );
 
 console.log("EMAILS FOUND BY REGEX:", companyName, extractedEmails);
-  const extracted = await extractContactsWithClaude({
-    companyName,
-    website: homeUrl,
-    eventName,
-    sourceUrl: bestUrls[0] || homeUrl,
-    markdown: combinedMarkdown
-  });
+
+
+
+const extracted = await extractContactsWithClaude({
+  companyName,
+  website: homeUrl,
+  eventName,
+  sourceUrl: bestUrls[0] || homeUrl,
+  markdown: combinedMarkdown,
+  extractedEmails
+});
 
   const contact = normalizeAndValidateContact(
     extracted,
