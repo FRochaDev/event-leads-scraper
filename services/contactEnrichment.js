@@ -247,20 +247,31 @@ function scoreUrl(url) {
     return 0;
   }
 
-  const rules = [
-    { token: "management-team", score: 100 },
-    { token: "management_team", score: 100 },
-    { token: "leadership-team", score: 95 },
-    { token: "leadership", score: 90 },
-    { token: "executive-team", score: 90 },
-    { token: "contact-us", score: 85 },
-    { token: "contact", score: 80 },
-    { token: "our-team", score: 75 },
-    { token: "team", score: 70 },
-    { token: "people", score: 40 },
-    { token: "about-us", score: 35 },
-    { token: "about", score: 30 }
-  ];
+const rules = [
+  { token: "contact-us", score: 100 },
+  { token: "contact", score: 95 },
+
+  { token: "events", score: 90 },
+  { token: "event", score: 85 },
+  { token: "marketing", score: 80 },
+  { token: "sales", score: 75 },
+  { token: "partnerships", score: 70 },
+  { token: "partners", score: 65 },
+  { token: "business-development", score: 60 },
+  { token: "commercial", score: 55 },
+
+  { token: "our-team", score: 45 },
+  { token: "team", score: 40 },
+  { token: "people", score: 35 },
+
+  { token: "about-us", score: 20 },
+  { token: "about", score: 15 },
+
+  { token: "leadership-team", score: 5 },
+  { token: "leadership", score: 5 },
+  { token: "management-team", score: 5 },
+  { token: "executive-team", score: 1 }
+];
 
   const pathParts = path
     .split(/[\/\-_]+/)
