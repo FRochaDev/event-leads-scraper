@@ -1,78 +1,55 @@
-export function buildContactPrompt({ companyName, website, eventName }) {
+export function buildClaudeContactPrompt({
+  companyName,
+  website,
+  eventName,
+  sourceUrl,
+  markdown
+}) {
+  const safeMarkdown = (markdown || "").slice(0, 25000);
+
   return `
-You are extracting B2B prospecting contacts.
+You extract B2B prospecting contacts from webpage markdown.
 
-Company:
-${companyName}
+Use ONLY the markdown provided.
+Do not use outside knowledge.
+Do not invent names, roles, emails or URLs.
 
-Company Website:
-${website || "Unknown"}
+Company: ${companyName}
+Website: ${website}
+Event: ${eventName}
+Source URL: ${sourceUrl}
 
-Event:
-${eventName}
+Return JSON only with this schema:
 
-Goal:
-Extract up to 5 relevant business contacts for trade shows, exhibitions, events, partnerships, sales and marketing.
-
-Do NOT choose the best contact.
-Simply extract every suitable candidate you can confidently identify.
-
-Preferred roles:
-
-1. Event Manager
-2. Exhibition Manager
-3. Trade Show Manager
-4. Events Coordinator
-5. Marketing Manager
-6. Field Marketing Manager
-7. Marketing Coordinator
-8. Partnerships Manager
-9. Business Development Manager
-10. Sales Manager
-11. Regional Sales Manager
-12. Brand Manager
-13. Founder
-
-Avoid executive contacts whenever possible:
-
-- CEO
-- CMO
-- CFO
-- CTO
-- COO
-- VP
-- Vice President
-- President
-- Managing Director
-- Board Member
-
-For EACH contact return:
-
-- firstName
-- lastName
-- email
-- role
-- sourceUrl
-- confidence
+{
+  "company": "",
+  "country": "",
+  "contacts": [
+    {
+      "firstName": "",
+      "lastName": "",
+      "email": "",
+      "role": "",
+      "sourceUrl": "",
+      "confidence": 0
+    }
+  ]
+}
 
 Rules:
-
-- Prefer information published on the company's own website.
-- If necessary, use another trustworthy public source.
-- Never invent names.
-- Never invent email addresses.
+- Extract only people or emails explicitly visible in the markdown.
+- If a real person is visible but no email is visible, return the person with email blank.
+- If only a generic company email is visible, return it with firstName and lastName blank.
 - Email must belong to the company domain.
-- Ignore LinkedIn profile URLs.
-- Ignore event organisers.
-- Ignore media websites.
-- Ignore placeholder contacts (John Doe, Jane Doe, Unknown, Admin, Test User).
-- Return a maximum of 5 contacts.
+- Ignore event organisers, media companies and unrelated third parties.
+- Return maximum 5 contacts.
+- If nothing relevant is visible, return contacts as an empty array.
 
-Also return:
+Return raw JSON only.
+Do not wrap the JSON in markdown.
+Never surround the response with markdown code fences.
 
-- company
-- country
-
-Return JSON only.
+Markdown:
+${safeMarkdown}
 `;
 }
