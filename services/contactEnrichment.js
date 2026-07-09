@@ -1,5 +1,6 @@
 import { buildClaudeContactPrompt } from "../prompts/contactExtractionPrompt.js";
 import { extractContactsWithClaude } from "./claudeContactExtraction.js";
+import { extractEmails } from "./emailExtractor.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const CONCURRENCY = 10;
@@ -132,7 +133,12 @@ async function findBestContact({ companyName, website, eventName }) {
     "CONTACT MARKDOWN SAMPLE:",
     combinedMarkdown.slice(0, 1000)
   );
+const extractedEmails = extractEmails(
+  combinedMarkdown,
+  getDomain(homeUrl)
+);
 
+console.log("EMAILS FOUND BY REGEX:", companyName, extractedEmails);
   const extracted = await extractContactsWithClaude({
     companyName,
     website: homeUrl,
