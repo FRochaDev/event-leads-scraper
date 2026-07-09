@@ -110,18 +110,20 @@ async function findBestContact({ companyName, website, eventName }) {
 
   console.log("BEST CONTACT URL:", companyName, bestUrl);
 
-  const contactResult = await scrapeContactFromUrl({
-    url: bestUrl,
-    companyName,
-    website: homeUrl,
-    eventName
-  });
+const contactResult = await scrapeContactFromUrl({
+  url: bestUrl,
+  companyName,
+  website: homeUrl,
+  eventName
+});
 
-  const contact = normalizeAndValidateContact(
-    contactResult.extracted,
-    homeUrl,
-    bestUrl
-  );
+console.log(
+  "CONTACT MARKDOWN SAMPLE:",
+  contactResult.markdown.slice(0, 1000)
+);
+
+const contact = emptyContact();
+contact.sourceUrl = bestUrl;
 
   return {
     contact,
@@ -174,17 +176,7 @@ async function scrapeContactFromUrl({ url, companyName, website, eventName }) {
       onlyMainContent: false,
       waitFor: 5000,
       timeout: 120000,
-      formats: [
-        {
-          type: "json",
-          prompt: buildContactPrompt({
-            companyName,
-            website,
-            eventName
-          }),
-          schema: contactSchema()
-        }
-      ]
+formats: ["markdown"]
     })
   });
 
@@ -200,10 +192,10 @@ async function scrapeContactFromUrl({ url, companyName, website, eventName }) {
     throw new Error(JSON.stringify(data));
   }
 
-  return {
-    extracted: data.data?.json || data.json || null,
-    creditsUsed: data.data?.metadata?.creditsUsed || 0
-  };
+return {
+  markdown: data.data?.markdown || "",
+  creditsUsed: data.data?.metadata?.creditsUsed || 0
+};
 }
 
 function chooseBestContactUrl(links, homeUrl) {
