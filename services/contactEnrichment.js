@@ -22,22 +22,12 @@ async function processLead(lead) {
   console.log("START:", lead.companyName);
 
   try {
-const contactResult = await scrapeContactFromUrl({
-  url: bestUrl,
-  companyName,
-  website: homeUrl,
-  eventName
-});
+    const result = await findBestContact({
+      companyName: lead.companyName,
+      website: lead.website,
+      eventName
+    });
 
-await extractContactsWithClaude({
-  companyName,
-  website: homeUrl,
-  eventName,
-  sourceUrl: bestUrl,
-  markdown: contactResult.markdown
-});
-
-    totalCredits += result.creditsUsed || 0;
     completed++;
 
     console.log("FINISHED:", lead.companyName);
