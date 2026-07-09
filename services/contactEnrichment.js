@@ -1,4 +1,4 @@
-import { buildContactPrompt } from "../prompts/contactExtractionPrompt.js";
+import { buildClaudeContactPrompt } from "../prompts/contactExtractionPrompt.js";
 import { extractContactsWithClaude } from "./claudeContactExtraction.js";
 
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
