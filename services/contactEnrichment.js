@@ -22,11 +22,20 @@ async function processLead(lead) {
   console.log("START:", lead.companyName);
 
   try {
-    const result = await findBestContact({
-      companyName: lead.companyName,
-      website: lead.website,
-      eventName
-    });
+const contactResult = await scrapeContactFromUrl({
+  url: bestUrl,
+  companyName,
+  website: homeUrl,
+  eventName
+});
+
+await extractContactsWithClaude({
+  companyName,
+  website: homeUrl,
+  eventName,
+  sourceUrl: bestUrl,
+  markdown: contactResult.markdown
+});
 
     totalCredits += result.creditsUsed || 0;
     completed++;
@@ -111,23 +120,31 @@ async function findBestContact({ companyName, website, eventName }) {
 
   console.log("BEST CONTACT URL:", companyName, bestUrl);
 
-const contactResult = await extractContactsWithClaude({
-  companyName,
-  website: homeUrl,
-  eventName,
-  sourceUrl: bestUrl,
-  markdown: contactResult.markdown
-});
+  const contactResult = await scrapeContactFromUrl({
+    url: bestUrl,
+    companyName,
+    website: homeUrl,
+    eventName
+  });
 
+  console.log(
+    "CONTACT MARKDOWN SAMPLE:",
+    contactResult.markdown.slice(0, 1000)
+  );
 
+  const extracted = await extractContactsWithClaude({
+    companyName,
+    website: homeUrl,
+    eventName,
+    sourceUrl: bestUrl,
+    markdown: contactResult.markdown
+  });
 
-console.log(
-  "CONTACT MARKDOWN SAMPLE:",
-  contactResult.markdown.slice(0, 1000)
-);
-
-const contact = emptyContact();
-contact.sourceUrl = bestUrl;
+  const contact = normalizeAndValidateContact(
+    extracted,
+    homeUrl,
+    bestUrl
+  );
 
   return {
     contact,
