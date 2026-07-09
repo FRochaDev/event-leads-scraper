@@ -129,20 +129,8 @@ const extracted = await extractContactsWithClaude({
   sourceUrl: bestUrl,
   markdown: contactResult.markdown
 });
-
-const first = extracted.contacts?.[0];
-
 const contact = normalizeAndValidateContact(
-  {
-    contactFirstName: first?.firstName || "",
-    contactLastName: first?.lastName || "",
-    personEmail: first?.email || "",
-    companyEmail: "",
-    contactRole: first?.role || "",
-    country: extracted.country || "",
-    sourceUrl: first?.sourceUrl || bestUrl,
-    confidence: first?.confidence || 0
-  },
+  extracted,
   homeUrl,
   bestUrl
 );
