@@ -266,9 +266,8 @@ function scoreUrl(url) {
 const rules = [
   { token: "contact-us", score: 100 },
   { token: "contact", score: 95 },
-
-  { token: "events", score: 90 },
-  { token: "event", score: 85 },
+  { token: "events", score: 25 },
+  { token: "event", score: 20 },
   { token: "marketing", score: 80 },
   { token: "sales", score: 75 },
   { token: "partnerships", score: 70 },
@@ -279,7 +278,11 @@ const rules = [
   { token: "our-team", score: 45 },
   { token: "team", score: 40 },
   { token: "people", score: 35 },
-
+  { token: "meet-the-team", score: 75 },
+  { token: "our-people", score: 70 },
+  { token: "team-members", score: 65 },
+  { token: "staff", score: 55 },
+  { token: "directory", score: 50 },
   { token: "about-us", score: 20 },
   { token: "about", score: 15 },
 
