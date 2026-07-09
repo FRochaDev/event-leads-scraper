@@ -51,6 +51,10 @@ Rules:
 - Return maximum 5 contacts.
 - If nothing relevant is visible, return contacts as an empty array.
 
+Return raw JSON only.
+Do not wrap the JSON in markdown.
+Never surround the response with code fences.
+
 Markdown:
 ${safeMarkdown}
 `;
@@ -86,14 +90,20 @@ ${safeMarkdown}
 
   const text = data.content?.[0]?.text || "{}";
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    console.log("CLAUDE JSON PARSE ERROR:", text);
-    return {
-      company: companyName,
-      country: "",
-      contacts: []
-    };
-  }
+const cleanedText = text
+  .replace(/^```json\s*/i, "")
+  .replace(/^```\s*/i, "")
+  .replace(/```$/i, "")
+  .trim();
+
+try {
+  return JSON.parse(cleanedText);
+} catch {
+  console.log("CLAUDE JSON PARSE ERROR:", text);
+  return {
+    company: companyName,
+    country: "",
+    contacts: []
+  };
+}
 }

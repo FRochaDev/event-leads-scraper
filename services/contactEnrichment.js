@@ -122,19 +122,30 @@ async function findBestContact({ companyName, website, eventName }) {
     contactResult.markdown.slice(0, 1000)
   );
 
-  const extracted = await extractContactsWithClaude({
-    companyName,
-    website: homeUrl,
-    eventName,
-    sourceUrl: bestUrl,
-    markdown: contactResult.markdown
-  });
+const extracted = await extractContactsWithClaude({
+  companyName,
+  website: homeUrl,
+  eventName,
+  sourceUrl: bestUrl,
+  markdown: contactResult.markdown
+});
 
-  const contact = normalizeAndValidateContact(
-    extracted,
-    homeUrl,
-    bestUrl
-  );
+const first = extracted.contacts?.[0];
+
+const contact = normalizeAndValidateContact(
+  {
+    contactFirstName: first?.firstName || "",
+    contactLastName: first?.lastName || "",
+    personEmail: first?.email || "",
+    companyEmail: "",
+    contactRole: first?.role || "",
+    country: extracted.country || "",
+    sourceUrl: first?.sourceUrl || bestUrl,
+    confidence: first?.confidence || 0
+  },
+  homeUrl,
+  bestUrl
+);
 
   return {
     contact,
