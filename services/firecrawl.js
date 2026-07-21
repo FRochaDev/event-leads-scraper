@@ -23,7 +23,7 @@ export async function extractExhibitorsFromEvent({
       url: startUrl,
       onlyMainContent: false,
       waitFor: 10000,
-      timeout: 300000,
+      timeout: 500000,
       formats: [
         {
           type: "json",

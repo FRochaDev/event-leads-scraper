@@ -174,7 +174,7 @@ async function scrapeHomepageForLinks(url) {
       url,
       onlyMainContent: false,
       waitFor: 5000,
-      timeout: 120000,
+      timeout: 500000,
       formats: ["markdown", "links"]
     })
   });
@@ -205,7 +205,7 @@ async function scrapeContactFromUrl({ url, companyName, website, eventName }) {
       url,
       onlyMainContent: false,
       waitFor: 5000,
-      timeout: 120000,
+      timeout: 500000,
 formats: ["markdown"]
     })
   });
